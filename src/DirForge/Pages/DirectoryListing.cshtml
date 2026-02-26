@@ -429,7 +429,7 @@
             <a href="https://github.com/Dissimilis/DirForge" target="_blank" rel="noopener">DirForge</a>
             @if (DirForge.Pages.DirectoryListingModel.AppVersion != null)
             {
-                <span class="version">v@(DirForge.Pages.DirectoryListingModel.AppVersion)</span>
+                <span class="version">@(DirForge.Pages.DirectoryListingModel.AppVersion)</span>
             }
             @if (Model.DashboardEnabled && !Model.ShareAccessActive)
             {

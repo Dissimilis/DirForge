@@ -3,6 +3,7 @@ WORKDIR /src
 
 ARG TARGETARCH
 ARG VERSION=""
+ARG COMMIT_SHA=""
 
 COPY src/DirForge/DirForge.csproj src/DirForge/
 RUN dotnet restore src/DirForge/DirForge.csproj
@@ -14,7 +15,11 @@ RUN case "$TARGETARCH" in \
       *) echo "Unsupported TARGETARCH: $TARGETARCH" >&2; exit 1 ;; \
     esac \
     && VERSION_FLAG="" \
-    && { [ -n "$VERSION" ] && VERSION_FLAG="-p:Version=$VERSION" || true; } \
+    && if [ -n "$VERSION" ]; then \
+         VERSION_FLAG="-p:Version=$VERSION"; \
+       elif [ -n "$COMMIT_SHA" ]; then \
+         VERSION_FLAG="-p:InformationalVersion=$(echo "$COMMIT_SHA" | cut -c1-7)"; \
+       fi \
     && rm -rf src/DirForge/bin src/DirForge/obj \
     && dotnet publish src/DirForge/DirForge.csproj \
       -c Release \

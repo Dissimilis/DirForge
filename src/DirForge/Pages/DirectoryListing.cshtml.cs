@@ -15,7 +15,9 @@ public sealed class DirectoryListingModel : PageModel
     public static string? AppVersion { get; } =
         typeof(DirectoryListingModel).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion?.Split('+')[0] is { } v && v != "1.0.0" ? v : null;
+            ?.InformationalVersion?.Split('+')[0] is { } v && v != "1.0.0"
+            ? (char.IsDigit(v[0]) ? "v" + v : v)
+            : null;
 
     public static bool IsImageExtension(string? extension) =>
         !string.IsNullOrEmpty(extension) && DirectoryFileActionHandlers.ImageExtensions.Contains(extension);
