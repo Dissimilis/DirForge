@@ -88,14 +88,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build dev image
-        run: |
-          docker build \
-            -t ${{ steps.image.outputs.name }}:dev \
-            -t ${{ steps.image.outputs.name }}:dev-${{ github.sha }} \
-            .
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      - name: Push dev image
-        run: |
-          docker push ${{ steps.image.outputs.name }}:dev
-          docker push ${{ steps.image.outputs.name }}:dev-${{ github.sha }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push dev image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ steps.image.outputs.name }}:dev
+            ${{ steps.image.outputs.name }}:dev-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
