@@ -428,47 +428,50 @@
             </div>
         </article>
 
-        <article class="card split-12">
-            <h2>In-Memory Logs (Latest 500)</h2>
-            <div class="table-scroll">
-                <table>
-                    <thead>
-                    <tr>
-                        <th>Time (UTC)</th>
-                        <th>Level</th>
-                        <th>Category</th>
-                        <th>Message</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    @if (!Model.Logs.Any())
-                    {
+        @if (Model.DashboardAuthEnabled)
+        {
+            <article class="card split-12">
+                <h2>In-Memory Logs (Latest 500)</h2>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
                         <tr>
-                            <td colspan="4" class="mono-dim">No log entries captured.</td>
+                            <th>Time (UTC)</th>
+                            <th>Level</th>
+                            <th>Category</th>
+                            <th>Message</th>
                         </tr>
-                    }
-                    else
-                    {
-                        @foreach (var log in Model.Logs)
+                        </thead>
+                        <tbody>
+                        @if (!Model.Logs.Any())
                         {
                             <tr>
-                                <td>@log.TimestampUtc.ToString("HH:mm:ss")</td>
-                                <td>@log.Level</td>
-                                <td>@log.Category</td>
-                                <td>@log.Message
-                                    @if (!string.IsNullOrWhiteSpace(log.Exception))
-                                    {
-                                        <text> :: @log.Exception</text>
-                                    }
-                                </td>
+                                <td colspan="4" class="mono-dim">No log entries captured.</td>
                             </tr>
                         }
-                    }
-                    </tbody>
-                </table>
-            </div>
-        </article>
-    </section>
+                        else
+                        {
+                            @foreach (var log in Model.Logs)
+                            {
+                                <tr>
+                                    <td>@log.TimestampUtc.ToString("HH:mm:ss")</td>
+                                    <td>@log.Level</td>
+                                    <td>@log.Category</td>
+                                    <td>@log.Message
+                                        @if (!string.IsNullOrWhiteSpace(log.Exception))
+                                        {
+                                            <text> :: @log.Exception</text>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        }
+</section>
 </main>
 </body>
 </html>
