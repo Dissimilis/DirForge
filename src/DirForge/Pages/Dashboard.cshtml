@@ -64,7 +64,7 @@
                 <div class="stamp">@Model.GeneratedAtUtc.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")</div>
                 <div class="hero-actions">
                     <a class="hero-btn" href="/dashboard">Refresh</a>
-                    <form method="post" asp-page-handler="Reset" onsubmit="return confirm('Reset dashboard page state and in-memory logs? This will not affect /metrics counters.');">
+                    <form method="post" asp-page-handler="Reset" asp-antiforgery="false" onsubmit="return confirm('Reset dashboard page state and in-memory logs? This will not affect /metrics counters.');">
                         <button type="submit" class="hero-btn hero-btn-reset">Reset</button>
                     </form>
                 </div>
