@@ -935,8 +935,7 @@
             headers: {
                 'Accept': 'application/json',
                 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                'X-DirForge-Share': '1',
-                'RequestVerificationToken': document.querySelector('meta[name="RequestVerificationToken"]')?.getAttribute('content') || ''
+                'X-DirForge-Share': '1'
             },
             body: requestBody.toString()
         })

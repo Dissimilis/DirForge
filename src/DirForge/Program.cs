@@ -6,6 +6,7 @@ using DirForge.Models;
 using DirForge.Security;
 using DirForge.Services;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
@@ -131,6 +132,7 @@ builder.Services.AddRazorPages(options =>
         options.Conventions.AuthorizePage("/Dashboard", DashboardBasicAuthenticationHandler.PolicyName);
     }
 });
+builder.Services.AddDataProtection().UseEphemeralDataProtectionProvider();
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])
     .AddCheck<RootPathReadableHealthCheck>("root_path_readable", tags: ["ready"]);
