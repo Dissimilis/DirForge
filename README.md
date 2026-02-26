@@ -8,6 +8,7 @@
   <a href="https://github.com/Dissimilis/DirForge/actions/workflows/ci.yml"><img src="https://github.com/Dissimilis/DirForge/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/Dissimilis/DirForge/releases/latest"><img src="https://img.shields.io/github/v/release/Dissimilis/DirForge?label=release" alt="Latest Release"></a>
   <a href="https://github.com/Dissimilis/DirForge/pkgs/container/dirforge"><img src="https://img.shields.io/badge/GHCR-dirforge-blue?logo=docker" alt="GHCR"></a>
+  <a href="https://dirforge.zenforge.eu/"><img src="https://img.shields.io/badge/Live%20Demo-dirforge.zenforge.eu-green" alt="Live Demo"></a>
   <a href="https://buymeacoffee.com/dissimilis"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?logo=buy-me-a-coffee&logoColor=black" alt="Buy Me a Coffee"></a>
 </p>
 
