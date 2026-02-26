@@ -1,0 +1,493 @@
+@page "/{**requestPath}"
+@model DirForge.Pages.DirectoryListingModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en" data-default-theme="@Model.DefaultTheme">
+<head>
+    <script>
+        (function(){var t=localStorage.getItem('theme')||document.documentElement.getAttribute('data-default-theme')||'light';document.documentElement.setAttribute('data-theme',t);var v=localStorage.getItem('dirforge-view');if(v==='grid')document.documentElement.setAttribute('data-view','grid');})();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="cache-control" content="private">
+    <meta name="color-scheme" content="light dark">
+    <title>@Model.PageTitle</title>
+    @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
+    <meta name="RequestVerificationToken" content="@Antiforgery.GetAndStoreTokens(HttpContext).RequestToken">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" href="~/dirforge-assets/branding/logo.png">
+    <link rel="apple-touch-icon" href="~/dirforge-assets/branding/logo.png">
+    <link rel="stylesheet" href="~/dirforge-assets/css/style.css">
+</head>
+<body data-share-token="@Model.ShareToken">
+    <a href="#main-content" class="sr-only">Skip to content</a>
+    <div class="container">
+        @{
+            var pathSegments = Model.CurrentRequestPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        }
+        <header class="header">
+            @if (Model.CurrentRequestPath != "/" && !Model.ShareFolderAccessActive)
+            {
+                <a href="/@Model.OrderSuffix" class="header-btn home-btn" title="Go to root" aria-label="Go to root">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                </a>
+            }
+
+            @if (pathSegments.Length == 0 && !string.IsNullOrEmpty(Model.SiteTitle))
+            {
+                <img src="~/dirforge-assets/branding/logo.svg" alt="" class="brand-logo">
+            }
+            <h1 class="header-title" aria-label="Breadcrumb">
+                @if (!Model.ShareFolderAccessActive && pathSegments.Length > 0)
+                {
+                    <a href="/@Model.OrderSuffix" class="breadcrumb-link" title="Root">@(Model.SiteTitle ?? "Root")</a>
+                    <span class="breadcrumb-separator">/</span>
+                    @for (var i = 0; i < pathSegments.Length; i++)
+                    {
+                        var isLast = i == pathSegments.Length - 1;
+                        var segmentPath = "/" + string.Join("/", pathSegments.Take(i + 1)) + "/";
+
+                        if (isLast)
+                        {
+                            <span class="breadcrumb-current">@pathSegments[i]</span>
+                        }
+                        else
+                        {
+                            <a href="@segmentPath@Model.OrderSuffix" class="breadcrumb-link">@pathSegments[i]</a>
+                            <span class="breadcrumb-separator">/</span>
+                        }
+                    }
+                }
+                else
+                {
+                    <span class="breadcrumb-current">@(pathSegments.Length > 0 ? pathSegments[^1] : (Model.SiteTitle ?? "/"))</span>
+                }
+            </h1>
+            @if (Model.ShareControlsEnabled)
+            {
+                <button type="button" class="header-btn share-open-btn" data-target-path="@Model.CurrentRelativePath" data-target-type="folder" title="Share current folder" aria-label="Share current folder">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg>
+                </button>
+            }
+            @if (Model.AllowFolderDownload || Model.ShareAccessActive)
+            {
+                <button type="button" class="header-btn" id="downloadFolder" title="Download folder as ZIP" aria-label="Download folder as ZIP">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
+            }
+            <button type="button" class="header-btn" id="lightboxTrigger" title="View all images" aria-label="View all images" style="display:none">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </button>
+            <button type="button" class="header-btn" id="qrCodeBtn" title="QR code for this page" aria-label="QR code">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="4" height="4"/><line x1="22" y1="14" x2="22" y2="14.01"/><line x1="18" y1="22" x2="18" y2="22.01"/><line x1="22" y1="18" x2="22" y2="22"/></svg>
+            </button>
+            <button type="button" class="header-btn view-toggle-btn" id="viewToggle" title="Toggle grid view" aria-label="Toggle grid view">
+                <svg class="icon-list-view" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                <svg class="icon-grid-view" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </button>
+            <button type="button" class="header-btn theme-toggle" id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode">
+                <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+        </header>
+
+        @if (Model.SearchEnabled)
+        {
+            <form method="get" action="@Model.CurrentRequestPath" class="search-panel">
+                <input type="hidden" name="@Model.CurrentSortKey" value="1">
+                <input type="hidden" name="dir" value="@Model.CurrentSortDirectionKey">
+                @if (Model.ShareAccessActive)
+                {
+                    <input type="hidden" name="s" value="@Model.ShareHiddenInputToken">
+                }
+                <input
+                    type="search"
+                    name="q"
+                    value="@Model.SearchQuery"
+                    class="search-input"
+                    placeholder="Search recursively (* and ? supported)...">
+                <button type="submit" class="search-btn">Search</button>
+                @if (Model.SearchActive)
+                {
+                    <a href="@Model.CurrentRequestPath@Model.ClearSearchSuffix" class="search-clear">Clear</a>
+                }
+            </form>
+        }
+
+        @if (Model.SearchActive && Model.SearchTruncated)
+        {
+            <div class="search-note">Results were truncated by search limits.</div>
+        }
+
+        @{
+            var visibleFolderCount = Model.Entries.Count(entry => entry.IsDirectory);
+            var visibleFileCount = Model.Entries.Count(entry => !entry.IsDirectory);
+            var visibleFileBytes = Model.Entries
+                .Where(entry => !entry.IsDirectory)
+                .Sum(entry => entry.Size);
+            var visibleKnownFolderCount = Model.Entries
+                .Count(entry => entry.IsDirectory && entry.HumanSize != "-");
+            var visibleKnownFolderBytes = Model.Entries
+                .Where(entry => entry.IsDirectory && entry.HumanSize != "-")
+                .Sum(entry => entry.Size);
+
+            var filesSummaryText = $"Files: {visibleFileCount} \u00b7 {DirForge.Services.DirectoryListingService.HumanizeSize(visibleFileBytes)}";
+            var foldersSummaryText = visibleKnownFolderCount > 0
+                ? $"Folders: {visibleFolderCount} \u00b7 {DirForge.Services.DirectoryListingService.HumanizeSize(visibleKnownFolderBytes)}"
+                : $"Folders: {visibleFolderCount}";
+            var visibleTotalCount = visibleFileCount + visibleFolderCount;
+            string totalSummaryText;
+
+            if (visibleFolderCount == 0)
+            {
+                totalSummaryText = $"Visible total: {visibleTotalCount} \u00b7 {DirForge.Services.DirectoryListingService.HumanizeSize(visibleFileBytes)}";
+            }
+            else if (visibleKnownFolderCount == visibleFolderCount)
+            {
+                totalSummaryText = $"Visible total: {visibleTotalCount} \u00b7 {DirForge.Services.DirectoryListingService.HumanizeSize(visibleFileBytes + visibleKnownFolderBytes)}";
+            }
+            else if (visibleKnownFolderCount > 0)
+            {
+                totalSummaryText = $"Visible total: {visibleTotalCount} \u00b7 {DirForge.Services.DirectoryListingService.HumanizeSize(visibleFileBytes)} (files only)";
+            }
+            else
+            {
+                totalSummaryText = $"Visible total: {visibleTotalCount} \u00b7 {DirForge.Services.DirectoryListingService.HumanizeSize(visibleFileBytes)} (files only)";
+            }
+        }
+        <section class="listing-summary" aria-label="Listing summary">
+            <span id="summaryFiles" class="listing-summary-chip">@filesSummaryText</span>
+            <span id="summaryFolders" class="listing-summary-chip">@foldersSummaryText</span>
+            <span id="summaryVisibleTotal" class="listing-summary-chip">@totalSummaryText</span>
+        </section>
+
+        @{
+            var entryViewModels = Model.Entries.Select(entry =>
+            {
+                var rrp = string.IsNullOrEmpty(Model.CurrentRelativePath)
+                    ? entry.RelativePath
+                    : Model.CurrentRelativePath.Trim('/') + "/" + entry.RelativePath.Trim('/');
+                rrp = rrp.Replace('\\', '/').Trim('/');
+                return new
+                {
+                    Entry = entry,
+                    RootRelativePath = rrp,
+                    EncodedUrlPath = string.Join("/", entry.RelativePath.Split('/', StringSplitOptions.RemoveEmptyEntries).Select(Uri.EscapeDataString)),
+                    EncodedRootPath = string.Join("/", rrp.Split('/', StringSplitOptions.RemoveEmptyEntries).Select(Uri.EscapeDataString)),
+                    IsInlineArchive = Model.OpenArchivesInline && entry.Type == "archive"
+                };
+            }).ToList();
+        }
+        <main id="main-content">
+            <table class="listing">
+                <caption class="sr-only">Directory listing for @Model.PageTitle</caption>
+                <thead>
+                    <tr>
+                        <th><a href="@Model.CurrentRequestPath@Model.TypeSortSuffix" title="Sort by type" class="sort-link">Type@(Model.CurrentSortKey == "type" ? Html.Raw(Model.CurrentSortDirectionKey == "desc" ? " <span class=\"sort-arrow\">&#9662;</span>" : " <span class=\"sort-arrow\">&#9652;</span>") : Html.Raw(""))</a></th>
+                        <th><a href="@Model.CurrentRequestPath@Model.NameSortSuffix" title="Sort by name" class="sort-link">Name@(Model.CurrentSortKey == "name" ? Html.Raw(Model.CurrentSortDirectionKey == "desc" ? " <span class=\"sort-arrow\">&#9662;</span>" : " <span class=\"sort-arrow\">&#9652;</span>") : Html.Raw(""))</a></th>
+                        <th><a href="@Model.CurrentRequestPath@Model.DateSortSuffix" title="Sort by date" class="sort-link">Modified@(Model.CurrentSortKey == "date" ? Html.Raw(Model.CurrentSortDirectionKey == "desc" ? " <span class=\"sort-arrow\">&#9662;</span>" : " <span class=\"sort-arrow\">&#9652;</span>") : Html.Raw(""))</a></th>
+                        <th>
+                            <a href="@Model.CurrentRequestPath@Model.SizeSortSuffix" title="Sort by size" class="sort-link">Size@(Model.CurrentSortKey == "size" ? Html.Raw(Model.CurrentSortDirectionKey == "desc" ? " <span class=\"sort-arrow\">&#9662;</span>" : " <span class=\"sort-arrow\">&#9652;</span>") : Html.Raw(""))</a>
+                            <button
+                                type="button"
+                                id="calcDirSizes"
+                                class="calc-sizes-btn"
+                                title="@(Model.SearchActive ? "Unavailable while search is active" : "Recalculate subdirectory sizes")"
+                                disabled="@(Model.SearchActive ? "disabled" : null)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                            </button>
+                        </th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.ShareFolderAccessActive)
+                    {
+                        <tr class="parent-row">
+                            <td><a href="@(Model.CurrentRequestPath)../@Model.OrderSuffix" title="Back"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="file-icon"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></a></td>
+                            <td class="filename-cell"><a href="@(Model.CurrentRequestPath)../@Model.OrderSuffix" title="Back">..</a></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    }
+                    @{ var todayDate = DateTime.Today; }
+                    @foreach (var vm in entryViewModels)
+                    {
+                        var entry = vm.Entry;
+                        var rootRelativePath = vm.RootRelativePath;
+                        var encodedUrlPath = vm.EncodedUrlPath;
+                        var encodedRootPath = vm.EncodedRootPath;
+                        var isInlineArchive = vm.IsInlineArchive;
+                        var isToday = entry.Modified.Date == todayDate;
+                        var archiveHref = $"/archive/{encodedRootPath}{Model.ShareQuerySuffix}";
+                        var fileHref = isInlineArchive
+                            ? archiveHref
+                            : $"{Model.CurrentRequestPath}{encodedUrlPath}?handler=View{Model.ShareActionSuffix}";
+                        var entrySizeKnown = !entry.IsDirectory || entry.HumanSize != "-";
+                        var entrySizeBytesText = entrySizeKnown
+                            ? entry.Size.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                            : string.Empty;
+                        <tr
+                            data-entry-row="1"
+                            data-dir="@(entry.IsDirectory ? entry.RelativePath : "")"
+                            data-is-directory="@(entry.IsDirectory ? "true" : "false")"
+                            data-size-known="@(entrySizeKnown ? "true" : "false")"
+                            data-size-bytes="@entrySizeBytesText">
+                            <td>
+                                @if (entry.IsDirectory)
+                                {
+                                    <a href="@(Model.CurrentRequestPath)@(encodedUrlPath)@Model.OrderSuffix" title="@entry.Type: @entry.Name"><img src="@entry.IconPath" alt="@entry.Type" class="file-icon"></a>
+                                }
+                                else
+                                {
+                                    <a href="@fileHref" title="@entry.Type: @entry.Name"><img src="@entry.IconPath" alt="@entry.Type" class="file-icon"></a>
+                                }
+                            </td>
+                            <td class="filename-cell">
+                                @if (entry.IsDirectory)
+                                {
+                                    <a href="@(Model.CurrentRequestPath)@(encodedUrlPath)@Model.OrderSuffix" title="@entry.Type: @entry.Name">@entry.Name</a>
+                                }
+                                else
+                                {
+                                    <a href="@fileHref" title="@entry.Type: @entry.Name">@entry.Name</a>
+                                }
+                            </td>
+                            <td class="date-cell@(isToday ? " date-cell-today" : string.Empty)">
+                                @entry.ModifiedString
+                            </td>
+                            <td class="size-cell" title="@entry.SizeTooltip">@entry.HumanSize</td>
+                            <td class="actions-cell">
+                                @if (!entry.IsDirectory)
+                                {
+                                    @if (!isInlineArchive && DirForge.Pages.DirectoryListingModel.IsImageExtension(entry.Extension))
+                                    {
+                                        <button type="button" class="action-btn lightbox-open-btn" title="View in lightbox" data-lightbox-name="@entry.Name"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></button>
+                                    }
+                                    <button type="button" class="action-btn preview-open-btn" title="Preview" data-preview-path="@rootRelativePath" data-preview-icon="@entry.IconPath"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+
+                                    @if (Model.AllowFileDownload || Model.ShareAccessActive)
+                                    {
+                                        <a href="@(Model.CurrentRequestPath)@(encodedUrlPath)@Model.OrderSuffix" class="action-btn" title="Download" download><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>
+                                    }
+                                    @if (Model.ShareControlsEnabled)
+                                    {
+                                        <button type="button" class="action-btn share-open-btn" title="Share file" data-target-path="@rootRelativePath" data-target-type="file"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg></button>
+                                    }
+                                }
+                                else if (entry.IsDirectory && Model.ShareControlsEnabled)
+                                {
+                                    <button type="button" class="action-btn share-open-btn" title="Share folder" data-target-path="@rootRelativePath" data-target-type="folder"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg></button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Entries.Any() && !Model.SearchActive)
+                    {
+                        <tr>
+                            <td colspan="5" class="empty-state">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                                This folder is empty
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Entries.Any() && Model.SearchActive)
+                    {
+                        <tr>
+                            <td colspan="5" class="empty-state">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                No matches found
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            <div class="grid-view" hidden>
+                <div class="grid-sort-bar">
+                    <a href="@Model.CurrentRequestPath@Model.TypeSortSuffix" class="grid-sort-pill@(Model.CurrentSortKey == "type" ? " active" : "")">Type@(Model.CurrentSortKey == "type" ? Html.Raw(Model.CurrentSortDirectionKey == "desc" ? " &#9662;" : " &#9652;") : Html.Raw(""))</a>
+                    <a href="@Model.CurrentRequestPath@Model.NameSortSuffix" class="grid-sort-pill@(Model.CurrentSortKey == "name" ? " active" : "")">Name@(Model.CurrentSortKey == "name" ? Html.Raw(Model.CurrentSortDirectionKey == "desc" ? " &#9662;" : " &#9652;") : Html.Raw(""))</a>
+                    <a href="@Model.CurrentRequestPath@Model.DateSortSuffix" class="grid-sort-pill@(Model.CurrentSortKey == "date" ? " active" : "")">Date@(Model.CurrentSortKey == "date" ? Html.Raw(Model.CurrentSortDirectionKey == "desc" ? " &#9662;" : " &#9652;") : Html.Raw(""))</a>
+                    <a href="@Model.CurrentRequestPath@Model.SizeSortSuffix" class="grid-sort-pill@(Model.CurrentSortKey == "size" ? " active" : "")">Size@(Model.CurrentSortKey == "size" ? Html.Raw(Model.CurrentSortDirectionKey == "desc" ? " &#9662;" : " &#9652;") : Html.Raw(""))</a>
+                </div>
+                <div class="grid-container">
+                    @if (!Model.ShareFolderAccessActive)
+                    {
+                        <a href="@(Model.CurrentRequestPath)../@Model.OrderSuffix" class="grid-card grid-card-parent" title="Back">
+                            <div class="grid-card-thumb">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="grid-card-svg"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+                            </div>
+                            <div class="grid-card-name">..</div>
+                        </a>
+                    }
+                    @foreach (var vm in entryViewModels)
+                    {
+                        var entry = vm.Entry;
+                        var encodedUrlPath = vm.EncodedUrlPath;
+                        var encodedRootPath = vm.EncodedRootPath;
+                        var isInlineArchive = vm.IsInlineArchive;
+                        var rootRelativePath = vm.RootRelativePath;
+                        if (entry.IsDirectory)
+                        {
+                            <a href="@(Model.CurrentRequestPath)@(encodedUrlPath)@Model.OrderSuffix" class="grid-card" title="@entry.Type: @entry.Name">
+                                <div class="grid-card-thumb">
+                                    <img src="@entry.IconPath" alt="@entry.Type" class="grid-card-svg" width="64" height="64">
+                                </div>
+                                <div class="grid-card-name">@entry.Name</div>
+                            </a>
+                        }
+                        else if (isInlineArchive)
+                        {
+                            <a href="/archive/@encodedRootPath@Model.ShareQuerySuffix" class="grid-card" title="@entry.Type: @entry.Name">
+                                <div class="grid-card-thumb">
+                                    <img src="@entry.IconPath" alt="@entry.Type" class="grid-card-svg" width="64" height="64">
+                                </div>
+                                <div class="grid-card-name">@entry.Name</div>
+                            </a>
+                        }
+                        else
+                        {
+                            <a href="#" class="grid-card grid-card-file" data-preview-path="@rootRelativePath" data-preview-icon="@entry.IconPath" data-view-href="@(Model.CurrentRequestPath)@(encodedUrlPath)?handler=View@Model.ShareActionSuffix" title="@entry.Type: @entry.Name">
+                                @{
+                                    var isImage = DirForge.Pages.DirectoryListingModel.IsImageExtension(entry.Extension);
+                                    var showThumbnail = isImage && entry.Size <= 5 * 1024 * 1024;
+                                }
+                                <div class="grid-card-thumb">
+                                    @if (showThumbnail)
+                                    {
+                                        <img class="grid-card-thumbnail" loading="lazy" src="/@(encodedRootPath)?handler=View@Model.ShareActionSuffix" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='block';">
+                                        <img src="@entry.IconPath" alt="@entry.Type" class="grid-card-svg grid-card-svg-fallback" width="64" height="64" style="display:none;">
+                                    }
+                                    else
+                                    {
+                                        <img src="@entry.IconPath" alt="@entry.Type" class="grid-card-svg" width="64" height="64">
+                                    }
+                                </div>
+                                <div class="grid-card-name">@entry.Name</div>
+                            </a>
+                        }
+                    }
+                </div>
+                @if (!Model.Entries.Any() && !Model.SearchActive)
+                {
+                    <div class="grid-empty">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        This folder is empty
+                    </div>
+                }
+                @if (!Model.Entries.Any() && Model.SearchActive)
+                {
+                    <div class="grid-empty">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        No matches found
+                    </div>
+                }
+            </div>
+        </main>
+
+        <div id="shareModal" class="share-modal" hidden>
+            <div class="share-dialog" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+                <h2 id="shareTitle" class="share-title">Create Share Link</h2>
+                <div class="share-row">
+                    <label class="share-label" for="shareDuration">Duration</label>
+                    <select id="shareDuration" class="share-select">
+                        <option value="1h">1 hour</option>
+                        <option value="6h">6 hours</option>
+                        <option value="24h">24 hours</option>
+                        <option value="week">1 week</option>
+                        <option value="month">1 month</option>
+                        <option value="year">1 year</option>
+                        <option value="10years">10 years</option>
+                    </select>
+                </div>
+                <div class="share-row">
+                    <label class="share-label" for="shareOneTime" title="Allows only the first successful open. For folders, the first open is redeemed into an in-memory session until link expiry or server restart.">One-time link</label>
+                    <input id="shareOneTime" class="share-checkbox" type="checkbox" />
+                </div>
+                <p id="shareOneTimeWarning" class="share-warning" hidden>One-time links are stored in memory and are lost on server restart.</p>
+                <div class="share-row">
+                    <label class="share-label" for="shareOutput">Share link</label>
+                    <input id="shareOutput" class="share-output" type="text" readonly placeholder="Generate link..." aria-live="polite" />
+                    <button type="button" id="shareCopyInline" class="share-copy-inline" title="Copy to clipboard" aria-label="Copy link">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    </button>
+                </div>
+                <div id="shareQrContainer" class="share-qr-container" hidden></div>
+                <p id="shareWarning" class="share-warning">@Model.ShareWarning</p>
+                <p id="shareError" class="share-error" aria-live="polite"></p>
+                <div class="share-actions">
+                    <button type="button" id="shareClose" class="share-btn share-btn-ghost">Close</button>
+                    <button type="button" id="shareGenerate" class="share-btn share-btn-primary">Generate</button>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <a href="https://github.com/Dissimilis/DirForge" target="_blank" rel="noopener">DirForge</a>
+            @if (DirForge.Pages.DirectoryListingModel.AppVersion != null)
+            {
+                <span class="version">v@(DirForge.Pages.DirectoryListingModel.AppVersion)</span>
+            }
+            @if (Model.DashboardEnabled && !Model.ShareAccessActive)
+            {
+                <span>&nbsp;|&nbsp;</span>
+                <a href="/dashboard">Dashboard</a>
+            }
+        </footer>
+    </div>
+
+    @{
+        var lightboxImages = Model.Entries
+            .Where(e => !e.IsDirectory && DirForge.Pages.DirectoryListingModel.IsImageExtension(e.Extension))
+            .Select(e => {
+                var rrp = string.IsNullOrEmpty(Model.CurrentRelativePath)
+                    ? e.RelativePath
+                    : Model.CurrentRelativePath.Trim('/') + "/" + e.RelativePath.Trim('/');
+                rrp = rrp.Replace('\\', '/').Trim('/');
+                var encoded = string.Join("/", rrp.Split('/', StringSplitOptions.RemoveEmptyEntries).Select(Uri.EscapeDataString));
+                return new { url = "/" + encoded + "?handler=View" + Model.ShareActionSuffix, name = e.Name, size = e.HumanSize };
+            })
+            .ToArray();
+    }
+    <script id="lightboxImageData" type="application/json">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(lightboxImages))</script>
+
+    <div id="previewModal" class="preview-modal" hidden>
+        <div class="preview-dialog" role="dialog" aria-modal="true" aria-labelledby="previewTitle">
+            <div class="preview-header">
+                <img id="previewIcon" class="preview-header-icon" src="" alt="">
+                <span id="previewTitle" class="preview-header-name"></span>
+                <a id="previewDownload" class="preview-download-btn" href="#" download title="Download file" aria-label="Download file">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </a>
+                <button type="button" id="previewClose" class="preview-close-btn" title="Close (Esc)" aria-label="Close preview">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div id="previewContent" class="preview-content"></div>
+            <div id="previewMeta" class="preview-meta"></div>
+            <div id="previewHashes" class="preview-hashes" aria-live="polite"></div>
+            <div class="preview-footer">
+                <button type="button" id="previewPrev" class="preview-nav-btn" title="Previous file" aria-label="Previous file">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    Prev
+                </button>
+                <span id="previewPosition" class="preview-position"></span>
+                <button type="button" id="previewNext" class="preview-nav-btn" title="Next file" aria-label="Next file">
+                    Next
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <a id="previewOpenTab" class="preview-nav-btn preview-open-link" href="#" target="_blank" rel="noopener">
+                    Open in new tab
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/dirforge-assets/js/qrcode-generator.js"></script>
+    <script src="~/dirforge-assets/js/dirforge.js"></script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore src/DirForge/DirForge.csproj
+
+      - name: Check formatting
+        run: dotnet format src/DirForge/DirForge.csproj --verify-no-changes --no-restore
+
+      - name: Build
+        run: dotnet build src/DirForge/DirForge.csproj -c Release --no-restore -p:TreatWarningsAsErrors=true
+
+      - name: Run unit tests
+        run: dotnet test src/DirForge.IntegrationRunner/DirForge.IntegrationRunner.csproj -c Release --nologo --filter "TestCategory=Unit"
+
+      - name: Run smoke integration tests
+        run: dotnet test src/DirForge.IntegrationRunner/DirForge.IntegrationRunner.csproj -c Release --nologo --filter "TestCategory=Smoke"
+
+      - name: Build container image
+        run: docker build --tag dirforge:test .
+
+      - name: Container smoke test
+        run: |
+          mkdir -p testdata && echo "ok" > testdata/hello.txt
+          docker run -d --name dirforge-smoke -p 18091:8080 -e RootPath=/data -v "${PWD}/testdata:/data:ro" dirforge:test
+
+          for i in $(seq 1 30); do
+            curl --fail --silent http://127.0.0.1:18091/health > /dev/null 2>&1 && break
+            [ "$i" -eq 30 ] && echo "Container not ready" && docker logs dirforge-smoke && exit 1
+            sleep 1
+          done
+
+          # Health responds
+          curl --fail --silent http://127.0.0.1:18091/health
+
+          # Listing shows test file
+          curl --fail --silent http://127.0.0.1:18091/ | grep -q "hello.txt"
+
+      - name: Cleanup smoke container
+        if: always()
+        run: docker rm -f dirforge-smoke || true
+
+  publish-dev:
+    if: github.event_name == 'push'
+    needs: validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute image name
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build dev image
+        run: |
+          docker build \
+            -t ${{ steps.image.outputs.name }}:dev \
+            -t ${{ steps.image.outputs.name }}:dev-${{ github.sha }} \
+            .
+
+      - name: Push dev image
+        run: |
+          docker push ${{ steps.image.outputs.name }}:dev
+          docker push ${{ steps.image.outputs.name }}:dev-${{ github.sha }}

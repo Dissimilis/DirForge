@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "DirForge": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "http://localhost:8091",
+      "environmentVariables": {
+        "RootPath": ".",
+        "Port": "8091"
+      }
+    }
+  }
+}

@@ -1,0 +1,42 @@
+# .NET build output
+**/bin/
+**/obj/
+/.tmp-build
+/artifacts
+
+# .NET tooling
+.dotnet/
+*.user
+*.suo
+*.cache
+*.DotSettings.user
+
+# Test results
+**/TestResults/
+
+# IDE / editor directories
+.idea/
+.vscode/
+*.swp
+*~
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local overrides and secrets
+.env
+docker-compose.override.yml
+src/DirForge/appsettings.Local.json
+
+# Project-specific tooling
+.serena/
+.claude/
+
+# Runtime files
+*.log
+tmp/
+
+# Documentation managed outside repo
+AGENTS.md

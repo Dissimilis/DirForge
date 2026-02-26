@@ -1,0 +1,173 @@
+@page "/archive/{**requestPath}"
+@model DirForge.Pages.ArchiveBrowseModel
+@{
+    Layout = null;
+    var archiveSegments = Model.CurrentArchivePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+}
+<!DOCTYPE html>
+<html lang="en" data-default-theme="@Model.DefaultTheme">
+<head>
+    <script>
+        (function(){var t=localStorage.getItem('theme')||document.documentElement.getAttribute('data-default-theme')||'light';document.documentElement.setAttribute('data-theme',t);})();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="cache-control" content="private">
+    <meta name="color-scheme" content="light dark">
+    <title>@Model.PageTitle</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" href="~/dirforge-assets/branding/logo.png">
+    <link rel="apple-touch-icon" href="~/dirforge-assets/branding/logo.png">
+    <link rel="stylesheet" href="~/dirforge-assets/css/style.css">
+</head>
+<body>
+    <a href="#main-content" class="sr-only">Skip to content</a>
+    <div class="container">
+        <header class="header">
+            <a href="@Model.BackToFolderHref" class="header-btn home-btn" title="Go to folder" aria-label="Go to folder">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </a>
+            <h1 class="header-title" aria-label="Archive breadcrumb">
+                @if (archiveSegments.Length == 0)
+                {
+                    <span class="breadcrumb-current">@Model.ArchiveFileName</span>
+                }
+                else
+                {
+                    <a href="@Model.BuildBrowseHref(string.Empty)" class="breadcrumb-link" title="Archive Root">@Model.ArchiveFileName</a>
+                    <span class="breadcrumb-separator">/</span>
+                    @for (var i = 0; i < archiveSegments.Length; i++)
+                    {
+                        var isLast = i == archiveSegments.Length - 1;
+                        var segmentPath = string.Join("/", archiveSegments.Take(i + 1));
+                        if (isLast)
+                        {
+                            <span class="breadcrumb-current">@archiveSegments[i]</span>
+                        }
+                        else
+                        {
+                            <a href="@Model.BuildBrowseHref(segmentPath)" class="breadcrumb-link">@archiveSegments[i]</a>
+                            <span class="breadcrumb-separator">/</span>
+                        }
+                    }
+                }
+            </h1>
+            <button type="button" class="header-btn theme-toggle" id="themeToggle" title="Toggle dark mode" aria-label="Toggle dark mode">
+                <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+        </header>
+
+        <main id="main-content">
+            <table class="listing">
+                <caption class="sr-only">Archive contents of @Model.ArchiveFileName</caption>
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Name</th>
+                        <th>Modified</th>
+                        <th>Size</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.IsArchiveRoot)
+                    {
+                        <tr class="parent-row">
+                            <td><a href="@Model.BuildBrowseHref(Model.ParentArchivePath)" title="Back"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="file-icon"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></a></td>
+                            <td class="filename-cell"><a href="@Model.BuildBrowseHref(Model.ParentArchivePath)" title="Back">..</a></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    }
+
+                    @foreach (var entry in Model.Entries)
+                    {
+                        var href = entry.IsDirectory
+                            ? Model.BuildBrowseHref(entry.Path)
+                            : Model.BuildDownloadHref(entry.Path);
+                        <tr>
+                            <td>
+                                <a href="@href" title="@entry.Type: @entry.Name"><img src="@entry.IconPath" alt="@entry.Type" class="file-icon"></a>
+                            </td>
+                            <td class="filename-cell">
+                                <a href="@href" title="@entry.Type: @entry.Name">@entry.Name</a>
+                            </td>
+                            <td class="date-cell">@entry.ModifiedString</td>
+                            <td class="size-cell">@entry.HumanSize</td>
+                            <td class="actions-cell">
+                                @if (!entry.IsDirectory)
+                                {
+                                    <button
+                                        type="button"
+                                        class="action-btn preview-open-btn"
+                                        title="Preview"
+                                        data-preview-url="@Model.BuildPreviewInfoHref(entry.Path)"
+                                        data-preview-icon="@entry.IconPath">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                    </button>
+                                    <a href="@href" class="action-btn" title="Download"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>
+                                }
+                            </td>
+                        </tr>
+                    }
+
+                    @if (!Model.Entries.Any())
+                    {
+                        <tr>
+                            <td colspan="5" class="empty-state">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                                This archive path is empty
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </main>
+
+        <footer class="footer">
+            <a href="https://github.com/Dissimilis/DirForge" target="_blank" rel="noopener">DirForge</a>
+            @if (DirForge.Pages.DirectoryListingModel.AppVersion != null)
+            {
+                <span class="version">v@(DirForge.Pages.DirectoryListingModel.AppVersion)</span>
+            }
+            @if (Model.DashboardEnabled && !Model.ShareAccessActive)
+            {
+                <span>&nbsp;|&nbsp;</span>
+                <a href="/dashboard">Dashboard</a>
+            }
+        </footer>
+    </div>
+
+    <div id="previewModal" class="preview-modal" hidden>
+        <div class="preview-dialog" role="dialog" aria-modal="true" aria-labelledby="previewTitle">
+            <div class="preview-header">
+                <img id="previewIcon" class="preview-header-icon" src="" alt="">
+                <span id="previewTitle" class="preview-header-name"></span>
+                <a id="previewDownload" class="preview-download-btn" href="#" download title="Download file" aria-label="Download file">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </a>
+                <button type="button" id="previewClose" class="preview-close-btn" title="Close (Esc)" aria-label="Close preview">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div id="previewContent" class="preview-content"></div>
+            <div id="previewMeta" class="preview-meta"></div>
+            <div class="preview-footer">
+                <button type="button" id="previewPrev" class="preview-nav-btn" title="Previous file" aria-label="Previous file">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    Prev
+                </button>
+                <span id="previewPosition" class="preview-position"></span>
+                <button type="button" id="previewNext" class="preview-nav-btn" title="Next file" aria-label="Next file">
+                    Next
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/dirforge-assets/js/dirforge.js"></script>
+</body>
+</html>

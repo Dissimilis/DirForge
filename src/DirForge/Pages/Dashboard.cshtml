@@ -1,0 +1,474 @@
+@page "/dashboard"
+@model DirForge.Pages.DashboardModel
+@{
+    Layout = null;
+
+    static string HumanBytes(long bytes) => DirForge.Services.DirectoryListingService.HumanizeSize(bytes);
+    static string F(double value) => value.ToString("F2");
+    static string N(double value) => value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+    var trafficPoints = Model.TrafficSeries;
+    var maxRps = trafficPoints.Count == 0
+        ? 1L
+        : Math.Max(1L, trafficPoints.Max(static point => point.RequestsPerSecond));
+    var latestRps = trafficPoints.Count == 0 ? 0L : trafficPoints[^1].RequestsPerSecond;
+    var startLabel = trafficPoints.Count == 0
+        ? "-"
+        : DateTimeOffset.FromUnixTimeSeconds(trafficPoints[0].UnixSecond).ToString("HH:mm:ss");
+    var endLabel = trafficPoints.Count == 0
+        ? "-"
+        : DateTimeOffset.FromUnixTimeSeconds(trafficPoints[^1].UnixSecond).ToString("HH:mm:ss");
+
+    const double chartWidth = 960d;
+    const double chartHeight = 220d;
+    const double chartPadLeft = 38d;
+    const double chartPadRight = 14d;
+    const double chartPadTop = 14d;
+    const double chartPadBottom = 28d;
+    var plotWidth = chartWidth - chartPadLeft - chartPadRight;
+    var plotHeight = chartHeight - chartPadTop - chartPadBottom;
+    var polylineBuilder = new System.Text.StringBuilder();
+    for (var i = 0; i < trafficPoints.Count; i++)
+    {
+        var x = chartPadLeft + (trafficPoints.Count == 1
+            ? 0d
+            : i * plotWidth / (trafficPoints.Count - 1));
+        var ratio = trafficPoints[i].RequestsPerSecond / (double)maxRps;
+        var y = chartPadTop + (plotHeight - (ratio * plotHeight));
+        if (i > 0)
+        {
+            polylineBuilder.Append(' ');
+        }
+
+        polylineBuilder.Append(N(x));
+        polylineBuilder.Append(',');
+        polylineBuilder.Append(N(y));
+    }
+
+    var polylinePoints = polylineBuilder.ToString();
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>@Model.PageTitle</title>
+    <link rel="stylesheet" href="~/dirforge-assets/css/dashboard.css">
+</head>
+<body>
+<main id="main-content" class="shell">
+    <section class="hero">
+        <div class="title-row">
+            <h1>@Model.SiteTitle :: Dashboard</h1>
+            <div class="title-meta">
+                <div class="stamp">@Model.GeneratedAtUtc.ToString("yyyy-MM-dd HH:mm:ss 'UTC'")</div>
+                <div class="hero-actions">
+                    <a class="hero-btn" href="/dashboard">Refresh</a>
+                    <form method="post" asp-page-handler="Reset" onsubmit="return confirm('Reset dashboard page state and in-memory logs? This will not affect /metrics counters.');">
+                        <button type="submit" class="hero-btn hero-btn-reset">Reset</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="banner">
+            All values on this page are stored in memory only. They reset on every process restart and are not persisted to disk.
+        </div>
+    </section>
+
+    <section class="grid">
+        <article class="card split-4">
+            <h2>Runtime</h2>
+            <div class="metrics">
+                <div class="metric">
+                    <div class="k">Started (UTC)</div>
+                    <div class="v">@Model.Snapshot.StartedAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Uptime</div>
+                    <div class="v">@Model.Snapshot.Uptime.ToString(@"dd\.hh\:mm\:ss")</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Machine</div>
+                    <div class="v">@Model.MachineName</div>
+                </div>
+                <div class="metric">
+                    <div class="k">PID</div>
+                    <div class="v">@Model.ProcessId</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Working Set</div>
+                    <div class="v">@HumanBytes(Model.WorkingSetBytes)</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Managed Memory</div>
+                    <div class="v">@HumanBytes(Model.ManagedMemoryBytes)</div>
+                </div>
+            </div>
+        </article>
+
+        <article class="card split-4">
+            <h2>Current State</h2>
+            <div class="metrics">
+                <div class="metric">
+                    <div class="k">Global Auth</div>
+                    <div class="v">@(Model.GlobalAuthEnabled ? "ENABLED" : "DISABLED")</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Dashboard Auth</div>
+                    <div class="v">@(Model.DashboardAuthEnabled ? "ENABLED" : "DISABLED")</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Metrics Endpoint</div>
+                    <div class="v">@(Model.MetricsEndpointEnabled ? "ENABLED" : "DISABLED")</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Search</div>
+                    <div class="v">@(Model.SearchEnabled ? "ENABLED" : "DISABLED")</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Sharing</div>
+                    <div class="v">@(Model.SharingEnabled ? "ENABLED" : "DISABLED")</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Open Archives Inline</div>
+                    <div class="v">@(Model.OpenArchivesInlineEnabled ? "ENABLED" : "DISABLED")</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Rate Limiter</div>
+                    <div class="v">@(Model.RateLimiterEnabled ? "ENABLED" : "DISABLED")</div>
+                </div>
+                <div class="metric">
+                    <div class="k">WebDAV</div>
+                    <div class="v">@(Model.WebDavEnabled ? "ENABLED" : "DISABLED")</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Configured Proxy IPs</div>
+                    <div class="v">@Model.ConfiguredProxyIps</div>
+                </div>
+            </div>
+        </article>
+
+        <article class="card split-4">
+            <h2>Traffic</h2>
+            <div class="metrics">
+                <div class="metric">
+                    <div class="k">Total Requests</div>
+                    <div class="v">@Model.Snapshot.TotalRequests</div>
+                </div>
+                <div class="metric">
+                    <div class="k">In Flight</div>
+                    <div class="v">@Model.Snapshot.InFlightRequests</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Req / Min</div>
+                    <div class="v">@F(Model.Snapshot.RequestsPerMinute)</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Avg Latency</div>
+                    <div class="v">@F(Model.Snapshot.AverageLatencyMs) ms</div>
+                </div>
+                <div class="metric">
+                    <div class="k">P50 Latency</div>
+                    <div class="v">@F(Model.Snapshot.P50LatencyMs) ms</div>
+                </div>
+                <div class="metric">
+                    <div class="k">P95 Latency</div>
+                    <div class="v">@F(Model.Snapshot.P95LatencyMs) ms</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Health Hits</div>
+                    <div class="v">@Model.Snapshot.HealthProbeCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Ready Hits</div>
+                    <div class="v">@Model.Snapshot.ReadyProbeCount</div>
+                </div>
+            </div>
+        </article>
+
+        <article class="card split-6">
+            <h2>Traffic Chart (Last 5 Minutes)</h2>
+            <div class="traffic-chart">
+                <div class="traffic-summary">
+                    <div class="traffic-stat">
+                        <div class="k">Current RPS</div>
+                        <div class="v">@latestRps</div>
+                    </div>
+                    <div class="traffic-stat">
+                        <div class="k">Peak RPS (Window)</div>
+                        <div class="v">@maxRps</div>
+                    </div>
+                    <div class="traffic-stat">
+                        <div class="k">Total Download Traffic</div>
+                        <div class="v">@HumanBytes(Model.TotalDownloadTrafficBytes)</div>
+                    </div>
+                </div>
+                <div class="traffic-chart-shell">
+                    <svg viewBox="0 0 @N(chartWidth) @N(chartHeight)" class="traffic-chart-svg" aria-label="Requests per second over the last five minutes" role="img">
+                        @for (var i = 0; i <= 4; i++)
+                        {
+                            var ratio = i / 4d;
+                            var y = chartPadTop + (ratio * plotHeight);
+                            <line class="chart-grid" x1="@N(chartPadLeft)" y1="@N(y)" x2="@N(chartWidth - chartPadRight)" y2="@N(y)"></line>
+                        }
+                        @if (!string.IsNullOrEmpty(polylinePoints))
+                        {
+                            <polyline class="chart-line" points="@polylinePoints"></polyline>
+                        }
+                    </svg>
+                    <div class="chart-range">
+                        <span>@startLabel</span>
+                        <span>@endLabel</span>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <article class="card split-6">
+            <h2>Feature Metrics</h2>
+            <div class="metrics">
+                <div class="metric">
+                    <div class="k">Search Requests</div>
+                    <div class="v">@Model.Snapshot.SearchRequests</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Search Truncated</div>
+                    <div class="v">@Model.Snapshot.SearchTruncatedRequests</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Avg Search Time</div>
+                    <div class="v">@F(Model.Snapshot.AverageSearchMs) ms</div>
+                </div>
+                <div class="metric">
+                    <div class="k">File Downloads</div>
+                    <div class="v">@Model.Snapshot.FileDownloadCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">File Download Bytes</div>
+                    <div class="v">@HumanBytes(Model.Snapshot.FileDownloadBytes)</div>
+                </div>
+                <div class="metric">
+                    <div class="k">ZIP Downloads</div>
+                    <div class="v">@Model.Snapshot.ZipDownloadCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">ZIP Source Bytes</div>
+                    <div class="v">@HumanBytes(Model.Snapshot.ZipDownloadBytes)</div>
+                </div>
+                <div class="metric">
+                    <div class="k">ZIP Cancelled</div>
+                    <div class="v">@Model.Snapshot.ZipCancelledCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">ZIP Size Limit Hits</div>
+                    <div class="v">@Model.Snapshot.ZipSizeLimitHitCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Archive Browses</div>
+                    <div class="v">@Model.Snapshot.ArchiveBrowseCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Archive Inner Downloads</div>
+                    <div class="v">@Model.Snapshot.ArchiveInnerDownloadCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Archive Inner Bytes</div>
+                    <div class="v">@HumanBytes(Model.Snapshot.ArchiveInnerDownloadBytes)</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Share Links Created</div>
+                    <div class="v">@Model.Snapshot.ShareLinkCreatedCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Share One-Time Consumed</div>
+                    <div class="v">@Model.Snapshot.ShareOneTimeConsumedCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Share Token Rejected</div>
+                    <div class="v">@Model.Snapshot.ShareTokenRejectedCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Share Unauthorized</div>
+                    <div class="v">@Model.Snapshot.ShareUnauthorizedCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Auth Failures</div>
+                    <div class="v">@Model.Snapshot.AuthFailureCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Dashboard Auth Failures</div>
+                    <div class="v">@Model.Snapshot.DashboardAuthFailureCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">Rate Limit Rejections</div>
+                    <div class="v">@Model.Snapshot.RateLimitRejectionCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">WebDAV Requests</div>
+                    <div class="v">@Model.Snapshot.WebDavRequestCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">WebDAV File Downloads</div>
+                    <div class="v">@Model.Snapshot.WebDavFileDownloadCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">WebDAV Download Bytes</div>
+                    <div class="v">@HumanBytes(Model.Snapshot.WebDavFileDownloadBytes)</div>
+                </div>
+            </div>
+        </article>
+
+        <article class="card split-3">
+            <h2>Endpoints</h2>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Endpoint</th>
+                        <th class="count-col">Requests</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @if (!Model.Snapshot.EndpointCounts.Any())
+                    {
+                        <tr>
+                            <td colspan="2" class="mono-dim">No requests recorded.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in Model.Snapshot.EndpointCounts)
+                        {
+                            <tr>
+                                <td>@item.Key</td>
+                                <td class="count-col">@item.Value</td>
+                            </tr>
+                        }
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article class="card split-3">
+            <h2>Status Codes</h2>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Code</th>
+                        <th class="count-col">Count</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @if (!Model.Snapshot.StatusCounts.Any())
+                    {
+                        <tr>
+                            <td colspan="2" class="mono-dim">No responses recorded.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in Model.Snapshot.StatusCounts)
+                        {
+                            var statusClass = item.Key >= 500 ? "status-5xx" : item.Key >= 400 ? "status-4xx" : "status-2xx";
+                            <tr>
+                                <td class="@statusClass">@item.Key</td>
+                                <td class="count-col">@item.Value</td>
+                            </tr>
+                        }
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article class="card split-12">
+            <h2>Latest Usage</h2>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Time (UTC)</th>
+                        <th>Method</th>
+                        <th>Path</th>
+                        <th>Endpoint</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                        <th>Client</th>
+                        <th>User Agent</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @if (!Model.Snapshot.LatestUsage.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="mono-dim">No usage captured yet.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in Model.Snapshot.LatestUsage.Take(200))
+                        {
+                            var statusClass = item.StatusCode >= 500 ? "status-5xx" : item.StatusCode >= 400 ? "status-4xx" : "status-2xx";
+                            <tr>
+                                <td>@item.TimestampUtc.ToString("HH:mm:ss")</td>
+                                <td>@item.Method</td>
+                                <td>@item.Path</td>
+                                <td>@item.Endpoint</td>
+                                <td class="@statusClass">@item.StatusCode</td>
+                                <td>@F(item.DurationMs) ms</td>
+                                <td>@item.ClientIp</td>
+                                <td>@item.UserAgent</td>
+                            </tr>
+                        }
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article class="card split-12">
+            <h2>In-Memory Logs (Latest 500)</h2>
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Time (UTC)</th>
+                        <th>Level</th>
+                        <th>Category</th>
+                        <th>Message</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @if (!Model.Logs.Any())
+                    {
+                        <tr>
+                            <td colspan="4" class="mono-dim">No log entries captured.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var log in Model.Logs)
+                        {
+                            <tr>
+                                <td>@log.TimestampUtc.ToString("HH:mm:ss")</td>
+                                <td>@log.Level</td>
+                                <td>@log.Category</td>
+                                <td>@log.Message
+                                    @if (!string.IsNullOrWhiteSpace(log.Exception))
+                                    {
+                                        <text> :: @log.Exception</text>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </section>
+</main>
+</body>
+</html>

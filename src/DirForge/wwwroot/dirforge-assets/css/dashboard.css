@@ -1,0 +1,350 @@
+:root {
+    --bg: #030706;
+    --panel: #0b1411;
+    --panel-soft: #101d18;
+    --line: #1d3a30;
+    --line-soft: #193328;
+    --ink: #cbffda;
+    --ink-dim: #8cc79a;
+    --ok: #38f58f;
+    --warn: #e4d447;
+    --err: #ff6f6f;
+    --accent: #26ff85;
+    --accent-soft: rgba(38, 255, 133, 0.18);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    color: var(--ink);
+    font-family: "JetBrains Mono", "Cascadia Code", "Consolas", monospace;
+    background: radial-gradient(circle at 20% 10%, rgba(30, 105, 68, 0.22), transparent 40%),
+    radial-gradient(circle at 90% 0%, rgba(34, 132, 84, 0.18), transparent 32%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015) 0 1px, transparent 1px 3px),
+    var(--bg);
+    min-height: 100vh;
+}
+
+.shell {
+    width: min(1280px, 100% - 2rem);
+    margin: 1.2rem auto 2.4rem;
+    display: grid;
+    gap: 1rem;
+}
+
+.hero {
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(18, 39, 31, 0.95), rgba(9, 18, 15, 0.95));
+    border-radius: 14px;
+    padding: 1rem 1.1rem;
+    box-shadow: 0 0 0 1px rgba(38, 255, 133, 0.08), inset 0 0 36px rgba(0, 0, 0, 0.4);
+}
+
+.title-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: baseline;
+    flex-wrap: wrap;
+}
+
+.title-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+
+h1 {
+    margin: 0;
+    font-size: 1.2rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.stamp {
+    color: var(--ink-dim);
+    font-size: 0.83rem;
+}
+
+.hero-actions {
+    display: flex;
+    gap: 0.45rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.hero-actions form {
+    margin: 0;
+}
+
+.hero-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 30px;
+    padding: 0 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(9, 26, 18, 0.92);
+    color: var(--ink);
+    font-size: 0.73rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.hero-btn:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px rgba(38, 255, 133, 0.16) inset;
+}
+
+.hero-btn-reset {
+    border-color: rgba(255, 111, 111, 0.45);
+    background: rgba(35, 12, 12, 0.92);
+    color: #ffc3c3;
+}
+
+.hero-btn-reset:hover {
+    border-color: var(--err);
+    box-shadow: 0 0 0 1px rgba(255, 111, 111, 0.2) inset;
+}
+
+.banner {
+    margin-top: 0.8rem;
+    border: 1px solid var(--line);
+    background: rgba(3, 9, 7, 0.82);
+    border-left: 3px solid var(--accent);
+    border-radius: 9px;
+    padding: 0.65rem 0.75rem;
+    color: #b8f8c9;
+    font-size: 0.88rem;
+}
+
+.grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.card {
+    grid-column: span 12;
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, var(--panel), #08120f);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.card h2 {
+    margin: 0;
+    padding: 0.65rem 0.85rem;
+    background: rgba(38, 255, 133, 0.06);
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 0.86rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #c1ffda;
+}
+
+.metrics {
+    padding: 0.7rem 0.85rem 0.95rem;
+    display: grid;
+    gap: 0.65rem 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.metric {
+    border: 1px solid var(--line-soft);
+    background: rgba(7, 17, 13, 0.7);
+    border-radius: 8px;
+    padding: 0.55rem 0.6rem;
+}
+
+.metric .k {
+    color: var(--ink-dim);
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.metric .v {
+    margin-top: 0.24rem;
+    font-size: 0.98rem;
+    color: var(--ok);
+    word-break: break-word;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.83rem;
+}
+
+th, td {
+    padding: 0.52rem 0.62rem;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+    text-align: left;
+}
+
+th {
+    font-size: 0.74rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    background: rgba(38, 255, 133, 0.04);
+}
+
+tr:last-child td {
+    border-bottom: 0;
+}
+
+.status-2xx {
+    color: var(--ok);
+}
+
+.status-4xx {
+    color: var(--warn);
+}
+
+.status-5xx {
+    color: var(--err);
+}
+
+.split-6 {
+    grid-column: span 6;
+}
+
+.split-4 {
+    grid-column: span 4;
+}
+
+.split-8 {
+    grid-column: span 8;
+}
+
+.split-3 {
+    grid-column: span 3;
+}
+
+.split-12 {
+    grid-column: span 12;
+}
+
+.mono-dim {
+    color: var(--ink-dim);
+}
+
+.count-col {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.table-scroll {
+    max-height: 460px;
+    overflow-y: auto;
+}
+
+.traffic-chart {
+    padding: 0.8rem 0.9rem 1rem;
+    display: grid;
+    gap: 0.7rem;
+}
+
+.traffic-summary {
+    display: grid;
+    gap: 0.55rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.traffic-stat {
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    background: rgba(7, 17, 13, 0.72);
+    padding: 0.5rem 0.6rem;
+}
+
+.traffic-stat .k {
+    color: var(--ink-dim);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.traffic-stat .v {
+    margin-top: 0.22rem;
+    color: var(--ok);
+    font-size: 0.94rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.traffic-chart-shell {
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+    background: rgba(5, 12, 9, 0.8);
+    padding: 0.4rem 0.45rem 0.3rem;
+}
+
+.traffic-chart-svg {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.chart-grid {
+    stroke: rgba(140, 199, 154, 0.2);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+}
+
+.chart-line {
+    stroke: var(--accent);
+    stroke-width: 2;
+    fill: none;
+}
+
+.chart-axis-label {
+    fill: var(--ink-dim);
+    font-size: 10px;
+    font-family: "JetBrains Mono", "Cascadia Code", "Consolas", monospace;
+}
+
+.chart-range {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    color: var(--ink-dim);
+    font-size: 0.72rem;
+}
+
+@media (max-width: 1050px) {
+    .split-6, .split-4, .split-8, .split-3 {
+        grid-column: span 12;
+    }
+}
+
+@media (max-width: 680px) {
+    .shell {
+        width: calc(100% - 1rem);
+    }
+
+    .metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .title-meta {
+        align-items: flex-start;
+    }
+
+    .traffic-summary {
+        grid-template-columns: 1fr;
+    }
+
+    th, td {
+        font-size: 0.78rem;
+    }
+}

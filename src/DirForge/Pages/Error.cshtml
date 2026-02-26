@@ -1,0 +1,25 @@
+@page "{statusCode:int?}"
+@model DirForge.Pages.ErrorModel
+@{
+    ViewData["Title"] = $"Error {Model.StatusCode}";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>@(Model.StatusCode) @(Model.StatusMessage)</title>
+    <style>
+        body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f5f5f5; color: #333; }
+        div { text-align: center; }
+        h1 { font-size: 3rem; margin: 0; }
+        p { color: #666; }
+    </style>
+</head>
+<body>
+    <div>
+        <h1>@Model.StatusCode</h1>
+        <p>@Model.StatusMessage</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,48 @@
+services:
+  dirforge:
+    image: ${DIRFORGE_IMAGE:-ghcr.io/dissimilis/dirforge:latest}
+    container_name: dirforge
+    environment:
+      RootPath: ${RootPath:-/data}
+      Port: 8080
+      ListenIp: ${ListenIp:-0.0.0.0}
+      BasicAuthUser: ${BasicAuthUser:-}
+      BasicAuthPass: ${BasicAuthPass:-}
+      BearerToken: ${BearerToken:-}
+      BearerTokenHeaderName: ${BearerTokenHeaderName:-Authorization}
+      DefaultTheme: ${DefaultTheme:-dark}
+      CalculateDirectorySizes: ${CalculateDirectorySizes:-false}
+      AllowFileDownload: ${AllowFileDownload:-true}
+      OpenArchivesInline: ${OpenArchivesInline:-true}
+      AllowFolderDownload: ${AllowFolderDownload:-true}
+      EnableSearch: ${EnableSearch:-true}
+      SearchMaxDepth: ${SearchMaxDepth:-32}
+      SearchTimeBudgetMs: ${SearchTimeBudgetMs:-42000}
+      OperationTimeBudgetMs: ${OperationTimeBudgetMs:-60000}
+      EnableSharing: ${EnableSharing:-true}
+      ShareSecret: ${ShareSecret:-}
+      HideDotfiles: ${HideDotfiles:-false}
+      HidePathPatterns: ${HidePathPatterns:-}
+      DenyDownloadExtensions: ${DenyDownloadExtensions:-}
+      MaxZipSize: ${MaxZipSize:-2147483648}
+      MaxPreviewFileSize: ${MaxPreviewFileSize:-2097152}
+      MaxFileSizeForHashing: ${MaxFileSizeForHashing:-7516192768}
+      SiteTitle: ${SiteTitle:-DirForge}
+      ForwardedHeadersEnabled: ${ForwardedHeadersEnabled:-true}
+      ForwardedHeadersKnownProxies: ${ForwardedHeadersKnownProxies:-}
+      ForwardedHeadersForwardLimit: ${ForwardedHeadersForwardLimit:-1}
+      ExternalAuthEnabled: ${ExternalAuthEnabled:-false}
+      ExternalAuthIdentityHeader: ${ExternalAuthIdentityHeader:-X-Forwarded-User}
+      EnableDefaultRateLimiter: ${EnableDefaultRateLimiter:-true}
+      RateLimitPerIp: ${RateLimitPerIp:-1000}
+      RateLimitGlobal: ${RateLimitGlobal:-4200}
+      EnableWebDav: ${EnableWebDav:-true}
+      DashboardEnabled: ${DashboardEnabled:-true}
+      EnableMetricsEndpoint: ${EnableMetricsEndpoint:-true}
+      DashboardAuthUser: ${DashboardAuthUser:-}
+      DashboardAuthPass: ${DashboardAuthPass:-}
+    volumes:
+      - ${HOST_PATH:?Set HOST_PATH to the host directory you want to list}:${RootPath:-/data}:ro
+    ports:
+      - "${Port:-8091}:8080"
+    restart: unless-stopped
