@@ -34,7 +34,6 @@ LABEL org.opencontainers.image.title="DirForge" \
       org.opencontainers.image.licenses="MIT"
 
 COPY --from=build /app/publish/ ./
-COPY samples/ ./samples/
 
 ENV PORT=8080
 EXPOSE 8080
