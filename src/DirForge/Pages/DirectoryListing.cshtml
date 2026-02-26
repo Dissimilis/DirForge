@@ -14,8 +14,6 @@
     <meta http-equiv="cache-control" content="private">
     <meta name="color-scheme" content="light dark">
     <title>@Model.PageTitle</title>
-    @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
-    <meta name="RequestVerificationToken" content="@Antiforgery.GetAndStoreTokens(HttpContext).RequestToken">
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <link rel="icon" type="image/png" href="~/dirforge-assets/branding/logo.png">
     <link rel="apple-touch-icon" href="~/dirforge-assets/branding/logo.png">
@@ -176,7 +174,7 @@
                     RootRelativePath = rrp,
                     EncodedUrlPath = string.Join("/", entry.RelativePath.Split('/', StringSplitOptions.RemoveEmptyEntries).Select(Uri.EscapeDataString)),
                     EncodedRootPath = string.Join("/", rrp.Split('/', StringSplitOptions.RemoveEmptyEntries).Select(Uri.EscapeDataString)),
-                    IsInlineArchive = Model.OpenArchivesInline && entry.Type == "archive"
+                    IsInlineArchive = Model.OpenArchivesInline && entry.Type == "archive" && Model.IsSupportedArchive(entry.Name)
                 };
             }).ToList();
         }

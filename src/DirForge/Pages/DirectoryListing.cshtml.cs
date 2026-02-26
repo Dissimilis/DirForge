@@ -8,6 +8,7 @@ using Microsoft.Net.Http.Headers;
 
 namespace DirForge.Pages;
 
+[IgnoreAntiforgeryToken]
 public sealed class DirectoryListingModel : PageModel
 {
     private static readonly ContentTypeResolver MimeTypeResolver = new();
@@ -21,10 +22,13 @@ public sealed class DirectoryListingModel : PageModel
 
     public static bool IsImageExtension(string? extension) =>
         !string.IsNullOrEmpty(extension) && DirectoryFileActionHandlers.ImageExtensions.Contains(extension);
+
+    public bool IsSupportedArchive(string fileName) => _archiveBrowseService.IsSupportedArchiveName(fileName);
     private readonly DirForgeOptions _options;
     private readonly DirectoryRequestGuards _guards;
     private readonly DirectoryActionHandlers _actions;
     private readonly DirectoryFileActionHandlers _fileActions;
+    private readonly ArchiveBrowseService _archiveBrowseService;
 
     public DirectoryListingModel(
         DirectoryListingService directoryListingService,
@@ -36,6 +40,7 @@ public sealed class DirectoryListingModel : PageModel
         ILogger<DirectoryListingModel> logger)
     {
         _options = options;
+        _archiveBrowseService = archiveBrowseService;
         _guards = new DirectoryRequestGuards(directoryListingService, _options, logger);
         _actions = new DirectoryActionHandlers(directoryListingService, _options, dashboardMetrics, _guards);
         _fileActions = new DirectoryFileActionHandlers(directoryListingService, shareLinkService, archiveBrowseService, iconResolver, _options, dashboardMetrics, logger, _guards);
