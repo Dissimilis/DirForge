@@ -1,7 +1,7 @@
 # DirForge
 
 <p align="center">
-  <img src="logo.svg" alt="DirForge logo" width="120">
+  <img src="img/logo.svg" alt="DirForge logo" width="120">
 </p>
 
 <p align="center">
@@ -14,7 +14,7 @@
 A stateless, read-only web file browser for homelab and NAS power users. No database, no background workers, no disk writes - just point it at a mounted path and go.
 
 <p align="center">
-  <img src="screenshot.jpg" alt="DirForge directory listing" width="700">
+  <img src="img/screenshot.jpg" alt="DirForge directory listing" width="700">
 </p>
 
 <p align="center">
