@@ -170,6 +170,8 @@ public static partial class McpEndpoints
 
         if (listingService.IsFileDownloadBlocked(relativePath))
         {
+            listingService.LogBlockedExtension(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown", context.Request.Path.Value ?? "/");
             await WriteToolError(context, id, "File download blocked by policy");
             return;
         }
@@ -561,6 +563,8 @@ public static partial class McpEndpoints
 
         if (listingService.IsFileDownloadBlocked(relativePath))
         {
+            listingService.LogBlockedExtension(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown", context.Request.Path.Value ?? "/");
             await WriteToolError(context, id, "File download blocked by policy");
             return;
         }
@@ -1023,6 +1027,8 @@ public static partial class McpEndpoints
 
         if (listingService.IsFileDownloadBlocked(relativePath))
         {
+            listingService.LogBlockedExtension(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown", context.Request.Path.Value ?? "/");
             await WriteToolError(context, id, "File download blocked by policy");
             return;
         }
@@ -1111,6 +1117,8 @@ public static partial class McpEndpoints
 
         if (listingService.IsFileDownloadBlocked(relativePath))
         {
+            listingService.LogBlockedExtension(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown", context.Request.Path.Value ?? "/");
             await WriteToolError(context, id, "File download blocked by policy");
             return;
         }

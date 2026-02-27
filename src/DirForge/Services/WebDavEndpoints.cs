@@ -126,7 +126,9 @@ public static class WebDavEndpoints
 
         if (isFile && listingService.IsFileDownloadBlocked(relativePath))
         {
-            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            listingService.LogBlockedExtension(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown", context.Request.Path.Value ?? "/");
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;
         }
 
@@ -246,6 +248,8 @@ public static class WebDavEndpoints
 
         if (listingService.IsFileDownloadBlocked(relativePath))
         {
+            listingService.LogBlockedExtension(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown", context.Request.Path.Value ?? "/");
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;
         }

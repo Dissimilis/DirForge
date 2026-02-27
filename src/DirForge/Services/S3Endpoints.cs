@@ -669,6 +669,8 @@ public static class S3Endpoints
 
         if (listingService.IsFileDownloadBlocked(relativePath))
         {
+            listingService.LogBlockedExtension(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown", context.Request.Path.Value ?? "/");
             return (null, 403, "AccessDenied", "Access Denied.");
         }
 

@@ -105,7 +105,9 @@ public sealed class ArchiveBrowseModel : PageModel
 
         if (!_options.AllowFileDownload || _directoryListingService.IsFileDownloadBlocked(normalizedEntryPath))
         {
-            return NotFound();
+            _directoryListingService.LogBlockedExtension(
+                HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", HttpContext.Request.Path.Value ?? "/");
+            return StatusCode(StatusCodes.Status403Forbidden);
         }
 
         if (!_archiveBrowseService.TryGetEntryDownloadInfo(physicalPath, normalizedEntryPath, out var entryInfo) ||
@@ -165,7 +167,9 @@ public sealed class ArchiveBrowseModel : PageModel
 
         if (!_options.AllowFileDownload || _directoryListingService.IsFileDownloadBlocked(normalizedEntryPath))
         {
-            return NotFound();
+            _directoryListingService.LogBlockedExtension(
+                HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", HttpContext.Request.Path.Value ?? "/");
+            return StatusCode(StatusCodes.Status403Forbidden);
         }
 
         if (!_archiveBrowseService.TryGetEntryDownloadInfo(physicalPath, normalizedEntryPath, out var entryInfo) ||
@@ -363,7 +367,9 @@ public sealed class ArchiveBrowseModel : PageModel
 
         if (!_options.AllowFileDownload || _directoryListingService.IsFileDownloadBlocked(relativePath))
         {
-            failure = new NotFoundResult();
+            _directoryListingService.LogBlockedExtension(
+                HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown", HttpContext.Request.Path.Value ?? "/");
+            failure = new StatusCodeResult(StatusCodes.Status403Forbidden);
             return false;
         }
 

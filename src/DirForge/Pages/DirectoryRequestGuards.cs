@@ -69,9 +69,9 @@ public sealed class DirectoryRequestGuards
 
     public IActionResult CreateBlockedExtensionNotFound(HttpContext httpContext)
     {
-        _logger.LogWarning("[SECURITY] BLOCKED_EXTENSION ClientIP={ClientIp} Path={RequestPath} Download denied by extension policy",
+        _directoryListingService.LogBlockedExtension(
             GetClientIp(httpContext), httpContext.Request.Path.Value ?? "/");
-        return new NotFoundResult();
+        return new StatusCodeResult(StatusCodes.Status403Forbidden);
     }
 
     public bool IsTrustedShareLinkRequest(HttpRequest request)

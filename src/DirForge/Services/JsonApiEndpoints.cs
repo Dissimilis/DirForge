@@ -412,6 +412,8 @@ public static class JsonApiEndpoints
 
         if (listingService.IsFileDownloadBlocked(relativePath))
         {
+            listingService.LogBlockedExtension(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown", context.Request.Path.Value ?? "/");
             await WriteErrorAsync(context, 403, "Forbidden", "File download blocked by policy.");
             return;
         }
@@ -489,6 +491,8 @@ public static class JsonApiEndpoints
 
         if (listingService.IsFileDownloadBlocked(relativePath))
         {
+            listingService.LogBlockedExtension(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown", context.Request.Path.Value ?? "/");
             await WriteErrorAsync(context, 403, "Forbidden", "File download blocked by policy.");
             return;
         }

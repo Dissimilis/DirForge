@@ -222,6 +222,12 @@ public sealed class DirectoryListingService
         return !string.IsNullOrEmpty(extension) && _deniedDownloadExtensions.Contains(extension);
     }
 
+    public void LogBlockedExtension(string clientIp, string requestPath)
+    {
+        _logger.LogWarning("[SECURITY] BLOCKED_EXTENSION ClientIP={ClientIp} Path={RequestPath} Download denied by extension policy",
+            clientIp, requestPath);
+    }
+
     public string GetRootRelativePath(string fullPath)
     {
         var relativePath = Path.GetRelativePath(_options.RootPath, fullPath).Replace('\\', '/');
