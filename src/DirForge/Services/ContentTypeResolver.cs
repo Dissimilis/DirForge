@@ -118,6 +118,10 @@ public sealed class ContentTypeResolver
         (".ssa", "text/plain"),
         (".nfo", "text/plain"),
         (".sfv", "text/plain"),
+        (".md5", "text/plain"), (".md5sum", "text/plain"),
+        (".sha1", "text/plain"), (".sha1sum", "text/plain"),
+        (".sha256", "text/plain"), (".sha256sum", "text/plain"),
+        (".sha512", "text/plain"), (".sha512sum", "text/plain"),
         (".nzb", "application/x-nzb"),
 
         // Web/dev frontend

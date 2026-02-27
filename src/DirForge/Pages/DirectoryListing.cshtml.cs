@@ -188,6 +188,12 @@ public sealed class DirectoryListingModel : PageModel
         return await _fileActions.HandleGetFileHashesAsync(HttpContext, requestPath, _guards.GetShareContext(HttpContext), cancellationToken);
     }
 
+    public async Task<IActionResult> OnGetVerifySidecar(string? requestPath, CancellationToken cancellationToken)
+    {
+        return await _fileActions.HandleVerifySidecarAsync(
+            HttpContext, requestPath, _guards.GetShareContext(HttpContext), cancellationToken);
+    }
+
     public IActionResult OnGetShareLink()
     {
         return StatusCode(StatusCodes.Status405MethodNotAllowed);

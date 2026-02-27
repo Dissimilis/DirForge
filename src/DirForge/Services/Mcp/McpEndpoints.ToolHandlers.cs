@@ -586,6 +586,7 @@ public static partial class McpEndpoints
         using var sha1 = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
         using var sha256 = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         using var sha512 = IncrementalHash.CreateHash(HashAlgorithmName.SHA512);
+        uint crc = Crc32.Init();
 
         const int bufferSize = 1024 * 1024;
         var buffer = new byte[bufferSize];
@@ -598,18 +599,247 @@ public static partial class McpEndpoints
             sha1.AppendData(buffer.AsSpan(0, bytesRead));
             sha256.AppendData(buffer.AsSpan(0, bytesRead));
             sha512.AppendData(buffer.AsSpan(0, bytesRead));
+            crc = Crc32.Update(crc, buffer.AsSpan(0, bytesRead));
         }
 
         var sb = new StringBuilder();
         sb.AppendLine($"File: {relativePath}");
         sb.AppendLine($"Size: {DirectoryListingService.HumanizeSize(fileInfo.Length)} ({fileInfo.Length:N0} bytes)");
         sb.AppendLine();
+        sb.AppendLine($"CRC32:  {Crc32.Finalize(crc)}");
         sb.AppendLine($"MD5:    {Convert.ToHexString(md5.GetCurrentHash()).ToLowerInvariant()}");
         sb.AppendLine($"SHA1:   {Convert.ToHexString(sha1.GetCurrentHash()).ToLowerInvariant()}");
         sb.AppendLine($"SHA256: {Convert.ToHexString(sha256.GetCurrentHash()).ToLowerInvariant()}");
         sb.AppendLine($"SHA512: {Convert.ToHexString(sha512.GetCurrentHash()).ToLowerInvariant()}");
 
         await WriteToolResult(context, id, sb.ToString());
+    }
+
+    private static async Task HandleToolVerifySidecar(HttpContext context, JsonElement? id, JsonElement? arguments, DirForgeOptions options)
+    {
+        if (!options.AllowFileDownload)
+        {
+            await WriteToolError(context, id, "File downloads are disabled");
+            return;
+        }
+
+        var listingService = context.RequestServices.GetRequiredService<DirectoryListingService>();
+        var path = arguments?.TryGetProperty("path", out var pathProp) == true ? pathProp.GetString() : "";
+        var relativePath = DirectoryListingService.NormalizeRelativePath(path);
+
+        if (string.IsNullOrEmpty(relativePath))
+        {
+            await WriteToolError(context, id, "File path is required");
+            return;
+        }
+
+        if (options.HideDotfiles && DirectoryListingService.ContainsDotPathSegment(relativePath))
+        {
+            await WriteToolError(context, id, "File not found");
+            return;
+        }
+
+        var physicalPath = listingService.ResolvePhysicalPath(relativePath);
+        if (physicalPath is null)
+        {
+            await WriteToolError(context, id, "File not found");
+            return;
+        }
+
+        if (listingService.IsPathHiddenByPolicy(relativePath, isDirectory: false))
+        {
+            await WriteToolError(context, id, "File not found");
+            return;
+        }
+
+        if (listingService.IsFileDownloadBlocked(relativePath))
+        {
+            listingService.LogBlockedExtension(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown", context.Request.Path.Value ?? "/");
+            await WriteToolError(context, id, "File download blocked by policy");
+            return;
+        }
+
+        var fileInfo = new FileInfo(physicalPath);
+        if (!fileInfo.Exists)
+        {
+            await WriteToolError(context, id, "File not found");
+            return;
+        }
+
+        (string ext, string algo)[] sidecarExts =
+        [
+            (".sha512", "sha512"), (".sha512sum", "sha512"),
+            (".sha256", "sha256"), (".sha256sum", "sha256"),
+            (".sha1", "sha1"), (".sha1sum", "sha1"),
+            (".md5", "md5"), (".md5sum", "md5"),
+            (".sfv", "crc32"),
+        ];
+
+        string? sidecarPath = null;
+        string? algorithm = null;
+        foreach (var (ext, algo) in sidecarExts)
+        {
+            var candidate = physicalPath + ext;
+            if (File.Exists(candidate))
+            {
+                sidecarPath = candidate;
+                algorithm = algo;
+                break;
+            }
+        }
+
+        if (sidecarPath is null || algorithm is null)
+        {
+            await WriteToolError(context, id, "No sidecar checksum file found");
+            return;
+        }
+
+        string sidecarContent;
+        try
+        {
+            var sidecarInfo = new FileInfo(sidecarPath);
+            if (sidecarInfo.Length > 4096)
+            {
+                await WriteToolError(context, id, "Sidecar file is too large");
+                return;
+            }
+            sidecarContent = await File.ReadAllTextAsync(sidecarPath, context.RequestAborted);
+        }
+        catch (Exception)
+        {
+            await WriteToolError(context, id, "Could not read sidecar file");
+            return;
+        }
+
+        var expectedHash = McpParseSidecarHash(sidecarContent, fileInfo.Name);
+        if (expectedHash is null)
+        {
+            await WriteToolError(context, id, "Could not parse expected hash from sidecar file");
+            return;
+        }
+
+        const int bufferSize = 1024 * 1024;
+        var buffer = new byte[bufferSize];
+        var timer = Stopwatch.StartNew();
+        var budgetMs = options.OperationTimeBudgetMs;
+        string computedHash;
+
+        await using var stream = new FileStream(physicalPath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, useAsync: true);
+        int bytesRead;
+
+        if (algorithm == "crc32")
+        {
+            uint crc = Crc32.Init();
+            while ((bytesRead = await stream.ReadAsync(buffer.AsMemory(0, bufferSize), context.RequestAborted)) > 0)
+            {
+                crc = Crc32.Update(crc, buffer.AsSpan(0, bytesRead));
+                if (budgetMs > 0 && timer.ElapsedMilliseconds >= budgetMs)
+                {
+                    await WriteToolError(context, id, "Operation timed out");
+                    return;
+                }
+            }
+            computedHash = Crc32.Finalize(crc);
+        }
+        else
+        {
+            var algoName = algorithm switch
+            {
+                "md5" => HashAlgorithmName.MD5,
+                "sha1" => HashAlgorithmName.SHA1,
+                "sha256" => HashAlgorithmName.SHA256,
+                "sha512" => HashAlgorithmName.SHA512,
+                _ => throw new InvalidOperationException()
+            };
+            using var hasher = IncrementalHash.CreateHash(algoName);
+            while ((bytesRead = await stream.ReadAsync(buffer.AsMemory(0, bufferSize), context.RequestAborted)) > 0)
+            {
+                hasher.AppendData(buffer.AsSpan(0, bytesRead));
+                if (budgetMs > 0 && timer.ElapsedMilliseconds >= budgetMs)
+                {
+                    await WriteToolError(context, id, "Operation timed out");
+                    return;
+                }
+            }
+            computedHash = Convert.ToHexString(hasher.GetCurrentHash()).ToLowerInvariant();
+        }
+
+        var verified = string.Equals(computedHash, expectedHash, StringComparison.OrdinalIgnoreCase);
+        var sidecarFileName = Path.GetFileName(sidecarPath);
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"File: {relativePath}");
+        sb.AppendLine($"Sidecar: {sidecarFileName}");
+        sb.AppendLine($"Algorithm: {algorithm}");
+        sb.AppendLine($"Expected: {expectedHash}");
+        sb.AppendLine($"Computed: {computedHash}");
+        sb.AppendLine($"Verified: {verified}");
+
+        await WriteToolResult(context, id, sb.ToString());
+    }
+
+    private static string? McpParseSidecarHash(string content, string fileName)
+    {
+        var lines = content.Split('\n', StringSplitOptions.TrimEntries);
+        foreach (var line in lines)
+        {
+            if (line.Length == 0 || line[0] == '#' || line[0] == ';')
+                continue;
+
+            var spaceIdx = line.IndexOfAny([' ', '\t']);
+            if (spaceIdx > 0)
+            {
+                var hashPart = line[..spaceIdx];
+                var filePart = line[(spaceIdx + 1)..].TrimStart(' ', '\t', '*');
+                if (McpIsHexString(hashPart) &&
+                    (filePart.Equals(fileName, StringComparison.OrdinalIgnoreCase) ||
+                     Path.GetFileName(filePart).Equals(fileName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return hashPart;
+                }
+            }
+        }
+
+        foreach (var line in lines)
+        {
+            if (line.Length == 0 || line[0] == '#' || line[0] == ';')
+                continue;
+
+            var lastSpace = line.LastIndexOfAny([' ', '\t']);
+            if (lastSpace > 0)
+            {
+                var hashPart = line[(lastSpace + 1)..].Trim();
+                var filePart = line[..lastSpace].Trim();
+                if (hashPart.Length == 8 && McpIsHexString(hashPart) &&
+                    (filePart.Equals(fileName, StringComparison.OrdinalIgnoreCase) ||
+                     Path.GetFileName(filePart).Equals(fileName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return hashPart;
+                }
+            }
+        }
+
+        foreach (var line in lines)
+        {
+            if (line.Length == 0 || line[0] == '#' || line[0] == ';')
+                continue;
+            var trimmed = line.Trim();
+            if (McpIsHexString(trimmed) && trimmed.Length >= 8)
+                return trimmed;
+        }
+
+        return null;
+    }
+
+    private static bool McpIsHexString(string s)
+    {
+        if (s.Length == 0) return false;
+        foreach (var c in s)
+        {
+            if (!char.IsAsciiHexDigit(c)) return false;
+        }
+        return true;
     }
 
     private static async Task HandleToolGetDirectoryTree(HttpContext context, JsonElement? id, JsonElement? arguments, DirForgeOptions options)

@@ -36,7 +36,8 @@ public sealed class DirectoryFileActionHandlers
         "tfvars",
         "reg", "inf",
         "htaccess", "nginx",
-        "pem", "pub", "crt", "cer", "asc"
+        "pem", "pub", "crt", "cer", "asc",
+        "sfv", "md5", "md5sum", "sha1", "sha1sum", "sha256", "sha256sum", "sha512", "sha512sum"
     };
     internal static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -459,6 +460,45 @@ public sealed class DirectoryFileActionHandlers
         var iconPath = _iconResolver.ResolveIconPath(fileInfo.Name, type);
         var detectedFileType = FileSignatureDetector.Detect(physicalPath);
 
+        string? sidecarAlgorithm = null;
+        (string ext, string algo)[] sidecarExts =
+        [
+            (".sha512", "sha512"), (".sha512sum", "sha512"),
+            (".sha256", "sha256"), (".sha256sum", "sha256"),
+            (".sha1", "sha1"), (".sha1sum", "sha1"),
+            (".md5", "md5"), (".md5sum", "md5"),
+            (".sfv", "crc32"),
+        ];
+
+        foreach (var (ext, algo) in sidecarExts)
+        {
+            if (System.IO.File.Exists(physicalPath + ext))
+            {
+                sidecarAlgorithm = algo;
+                break;
+            }
+        }
+
+        // Reverse sidecar detection: if this file IS a sidecar, find the original
+        string? sidecarTargetPath = null;
+        if (sidecarAlgorithm is null)
+        {
+            var fileExt = Path.GetExtension(physicalPath);
+            foreach (var (ext, algo) in sidecarExts)
+            {
+                if (fileExt.Equals(ext, StringComparison.OrdinalIgnoreCase))
+                {
+                    var originalPath = physicalPath[..^ext.Length];
+                    if (System.IO.File.Exists(originalPath))
+                    {
+                        sidecarAlgorithm = algo;
+                        sidecarTargetPath = relativePath[..^ext.Length];
+                    }
+                    break;
+                }
+            }
+        }
+
         return new JsonResult(new
         {
             name = fileInfo.Name,
@@ -475,7 +515,9 @@ public sealed class DirectoryFileActionHandlers
             iconPath,
             textContent,
             textTruncated,
-            maxFileSizeForHashing = _options.MaxFileSizeForHashing
+            maxFileSizeForHashing = _options.MaxFileSizeForHashing,
+            sidecarAlgorithm,
+            sidecarTargetPath
         });
     }
 
@@ -489,6 +531,7 @@ public sealed class DirectoryFileActionHandlers
             return new BadRequestObjectResult("File exceeds the maximum size for hashing.");
         }
 
+        uint crc32State = Crc32.Init();
         using var md5 = IncrementalHash.CreateHash(HashAlgorithmName.MD5);
         using var sha1 = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
         using var sha256 = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -501,6 +544,7 @@ public sealed class DirectoryFileActionHandlers
         int bytesRead;
         while ((bytesRead = await stream.ReadAsync(buffer.AsMemory(0, bufferSize), cancellationToken)) > 0)
         {
+            crc32State = Crc32.Update(crc32State, buffer.AsSpan(0, bytesRead));
             md5.AppendData(buffer.AsSpan(0, bytesRead));
             sha1.AppendData(buffer.AsSpan(0, bytesRead));
             sha256.AppendData(buffer.AsSpan(0, bytesRead));
@@ -509,11 +553,178 @@ public sealed class DirectoryFileActionHandlers
 
         return new JsonResult(new
         {
+            crc32 = Crc32.Finalize(crc32State),
             md5 = Convert.ToHexString(md5.GetCurrentHash()).ToLowerInvariant(),
             sha1 = Convert.ToHexString(sha1.GetCurrentHash()).ToLowerInvariant(),
             sha256 = Convert.ToHexString(sha256.GetCurrentHash()).ToLowerInvariant(),
             sha512 = Convert.ToHexString(sha512.GetCurrentHash()).ToLowerInvariant()
         });
+    }
+
+    public async Task<IActionResult> HandleVerifySidecarAsync(
+        HttpContext httpContext, string? requestPath,
+        ShareAccessContext? shareContext, CancellationToken cancellationToken = default)
+    {
+        var guard = GuardFileAccess(httpContext, requestPath, shareContext, out _, out var physicalPath, out var fileInfo);
+        if (guard is not null) return guard;
+
+        (string ext, string algo)[] sidecarExts =
+        [
+            (".sha512", "sha512"), (".sha512sum", "sha512"),
+            (".sha256", "sha256"), (".sha256sum", "sha256"),
+            (".sha1", "sha1"), (".sha1sum", "sha1"),
+            (".md5", "md5"), (".md5sum", "md5"),
+            (".sfv", "crc32"),
+        ];
+
+        string? sidecarPath = null;
+        string? algorithm = null;
+        foreach (var (ext, algo) in sidecarExts)
+        {
+            var candidate = physicalPath + ext;
+            if (System.IO.File.Exists(candidate))
+            {
+                sidecarPath = candidate;
+                algorithm = algo;
+                break;
+            }
+        }
+
+        if (sidecarPath is null || algorithm is null)
+            return new BadRequestObjectResult("No sidecar checksum file found.");
+
+        string sidecarContent;
+        try
+        {
+            var sidecarInfo = new FileInfo(sidecarPath);
+            if (sidecarInfo.Length > 4096)
+                return new BadRequestObjectResult("Sidecar file is too large.");
+            sidecarContent = await System.IO.File.ReadAllTextAsync(sidecarPath, cancellationToken);
+        }
+        catch (Exception)
+        {
+            return new BadRequestObjectResult("Could not read sidecar file.");
+        }
+
+        var expectedHash = ParseSidecarHash(sidecarContent, fileInfo.Name);
+        if (expectedHash is null)
+            return new BadRequestObjectResult("Could not parse expected hash from sidecar file.");
+
+        const int bufferSize = 1024 * 1024;
+        var buffer = new byte[bufferSize];
+        var timer = Stopwatch.StartNew();
+        var budgetMs = _options.OperationTimeBudgetMs;
+        string computedHash;
+
+        await using var stream = new FileStream(physicalPath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, useAsync: true);
+        int bytesRead;
+
+        if (algorithm == "crc32")
+        {
+            uint crc = Crc32.Init();
+            while ((bytesRead = await stream.ReadAsync(buffer.AsMemory(0, bufferSize), cancellationToken)) > 0)
+            {
+                crc = Crc32.Update(crc, buffer.AsSpan(0, bytesRead));
+                if (budgetMs > 0 && timer.ElapsedMilliseconds >= budgetMs)
+                    return new StatusCodeResult(StatusCodes.Status408RequestTimeout);
+            }
+            computedHash = Crc32.Finalize(crc);
+        }
+        else
+        {
+            var algoName = algorithm switch
+            {
+                "md5" => HashAlgorithmName.MD5,
+                "sha1" => HashAlgorithmName.SHA1,
+                "sha256" => HashAlgorithmName.SHA256,
+                "sha512" => HashAlgorithmName.SHA512,
+                _ => throw new InvalidOperationException()
+            };
+            using var hasher = IncrementalHash.CreateHash(algoName);
+            while ((bytesRead = await stream.ReadAsync(buffer.AsMemory(0, bufferSize), cancellationToken)) > 0)
+            {
+                hasher.AppendData(buffer.AsSpan(0, bytesRead));
+                if (budgetMs > 0 && timer.ElapsedMilliseconds >= budgetMs)
+                    return new StatusCodeResult(StatusCodes.Status408RequestTimeout);
+            }
+            computedHash = Convert.ToHexString(hasher.GetCurrentHash()).ToLowerInvariant();
+        }
+
+        var verified = string.Equals(computedHash, expectedHash, StringComparison.OrdinalIgnoreCase);
+
+        return new JsonResult(new
+        {
+            algorithm,
+            expectedHash,
+            computedHash,
+            verified
+        });
+    }
+
+    private static string? ParseSidecarHash(string content, string fileName)
+    {
+        var lines = content.Split('\n', StringSplitOptions.TrimEntries);
+        foreach (var line in lines)
+        {
+            if (line.Length == 0 || line[0] == '#' || line[0] == ';')
+                continue;
+
+            // Try "hash  filename" or "hash *filename" format
+            var spaceIdx = line.IndexOfAny([' ', '\t']);
+            if (spaceIdx > 0)
+            {
+                var hashPart = line[..spaceIdx];
+                var filePart = line[(spaceIdx + 1)..].TrimStart(' ', '\t', '*');
+                if (IsHexString(hashPart) &&
+                    (filePart.Equals(fileName, StringComparison.OrdinalIgnoreCase) ||
+                     Path.GetFileName(filePart).Equals(fileName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return hashPart;
+                }
+            }
+        }
+
+        // Try SFV format: "filename hash" (reversed, CRC32 = 8 hex chars)
+        foreach (var line in lines)
+        {
+            if (line.Length == 0 || line[0] == '#' || line[0] == ';')
+                continue;
+
+            var lastSpace = line.LastIndexOfAny([' ', '\t']);
+            if (lastSpace > 0)
+            {
+                var hashPart = line[(lastSpace + 1)..].Trim();
+                var filePart = line[..lastSpace].Trim();
+                if (hashPart.Length == 8 && IsHexString(hashPart) &&
+                    (filePart.Equals(fileName, StringComparison.OrdinalIgnoreCase) ||
+                     Path.GetFileName(filePart).Equals(fileName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return hashPart;
+                }
+            }
+        }
+
+        // Fall back to bare hash (single-file sidecar)
+        foreach (var line in lines)
+        {
+            if (line.Length == 0 || line[0] == '#' || line[0] == ';')
+                continue;
+            var trimmed = line.Trim();
+            if (IsHexString(trimmed) && trimmed.Length >= 8)
+                return trimmed;
+        }
+
+        return null;
+    }
+
+    private static bool IsHexString(string s)
+    {
+        if (s.Length == 0) return false;
+        foreach (var c in s)
+        {
+            if (!char.IsAsciiHexDigit(c)) return false;
+        }
+        return true;
     }
 
     public IActionResult HandlePostShareLink(

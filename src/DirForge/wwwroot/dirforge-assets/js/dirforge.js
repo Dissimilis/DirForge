@@ -1058,6 +1058,7 @@
     var previewOpenTab = document.getElementById('previewOpenTab');
     var previewDownload = document.getElementById('previewDownload');
     var previewCurrentIndex = -1;
+    var previewVerifyTargetPath = null;
 
     var previewFiles = [];
     document.querySelectorAll('.preview-open-btn').forEach(function(btn, i) {
@@ -1189,6 +1190,14 @@
         if (data.size <= data.maxFileSizeForHashing) {
             html += '<button type="button" class="preview-hash-btn" id="previewHashBtn">Calculate hashes</button>';
         }
+        if (data.sidecarAlgorithm) {
+            var verifyLabel = data.sidecarTargetPath
+                ? 'Verify ' + escapeHtml(data.sidecarTargetPath.split('/').pop())
+                : 'Verify ' + escapeHtml(data.sidecarAlgorithm.toUpperCase());
+            html += '<button type="button" class="preview-hash-btn preview-verify-btn" id="previewVerifyBtn">'
+                  + verifyLabel + '</button>';
+        }
+        previewVerifyTargetPath = data.sidecarTargetPath || null;
         previewMeta.innerHTML = html;
         previewHashes.innerHTML = '';
 
@@ -1210,8 +1219,8 @@
                         return r.json();
                     })
                     .then(function(hashes) {
-                        var hashNames = ['md5', 'sha1', 'sha256', 'sha512'];
-                        var hashLabels = { md5: 'MD5', sha1: 'SHA1', sha256: 'SHA256', sha512: 'SHA512' };
+                        var hashNames = ['crc32', 'md5', 'sha1', 'sha256', 'sha512'];
+                        var hashLabels = { crc32: 'CRC32', md5: 'MD5', sha1: 'SHA1', sha256: 'SHA256', sha512: 'SHA512' };
                         var hhtml = '';
                         for (var j = 0; j < hashNames.length; j++) {
                             var key = hashNames[j];
@@ -1243,6 +1252,44 @@
                     })
                     .catch(function(err) {
                         previewHashes.innerHTML = '<span class="preview-hash-error">' + escapeHtml(err.message) + '</span>';
+                    });
+            });
+        }
+
+        var verifyBtn = document.getElementById('previewVerifyBtn');
+        if (verifyBtn) {
+            verifyBtn.addEventListener('click', function() {
+                verifyBtn.textContent = 'Verifying\u2026';
+                verifyBtn.disabled = true;
+                verifyBtn.classList.remove('preview-verify-ok', 'preview-verify-fail');
+
+                var targetPath = previewVerifyTargetPath || previewFiles[previewCurrentIndex].path;
+                var pathSegments = targetPath.split('/').filter(Boolean).map(encodeURIComponent).join('/');
+                var verifyUrl = new URL('/' + pathSegments, window.location.origin);
+                verifyUrl.searchParams.set('handler', 'VerifySidecar');
+                var shareParam = activeShareToken;
+                if (shareParam) verifyUrl.searchParams.set('s', shareParam);
+
+                fetch(verifyUrl.toString())
+                    .then(function(r) {
+                        if (!r.ok) return r.text().then(function(t) { throw new Error(t || 'Verification failed (' + r.status + ')'); });
+                        return r.json();
+                    })
+                    .then(function(result) {
+                        if (result.verified) {
+                            verifyBtn.classList.add('preview-verify-ok');
+                            verifyBtn.textContent = 'Verified';
+                            verifyBtn.title = result.algorithm.toUpperCase() + ': ' + result.computedHash;
+                        } else {
+                            verifyBtn.classList.add('preview-verify-fail');
+                            verifyBtn.textContent = 'Mismatch';
+                            verifyBtn.title = 'Expected: ' + result.expectedHash + '\nGot: ' + result.computedHash;
+                        }
+                    })
+                    .catch(function(err) {
+                        verifyBtn.classList.add('preview-verify-fail');
+                        verifyBtn.textContent = 'Error';
+                        verifyBtn.title = err.message;
                     });
             });
         }

@@ -1221,6 +1221,18 @@ table.listing tr:hover .file-icon {
   cursor: default;
 }
 
+.preview-verify-ok {
+  border-color: var(--color-success, #22c55e);
+  color: var(--color-success, #22c55e);
+  opacity: 1;
+}
+
+.preview-verify-fail {
+  border-color: var(--color-danger, #ef4444);
+  color: var(--color-danger, #ef4444);
+  opacity: 1;
+}
+
 /* Hash row */
 .preview-hashes {
   display: flex;

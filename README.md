@@ -92,7 +92,8 @@ With the default config profile in this repository, sharing, dashboard, and metr
 - Signed share links with expiry
 - One-time share links
 - QR code generation for share links
-- File hash calculation (MD5, SHA-1, SHA-256, SHA-512)
+- File hash calculation (CRC32, MD5, SHA-1, SHA-256, SHA-512)
+- Sidecar checksum verification (`.md5`, `.sha1`, `.sha256`, `.sha512`, `.sfv`)
 
 ### WebDAV
 - Read-only WebDAV endpoint at `/webdav/` (DAV Class 1)

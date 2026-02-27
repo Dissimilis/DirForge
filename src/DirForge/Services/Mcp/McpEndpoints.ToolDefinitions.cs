@@ -57,13 +57,27 @@ public static partial class McpEndpoints
             new
             {
                 name = "get_file_hashes",
-                description = "Compute MD5, SHA1, SHA256, and SHA512 hashes of a file.",
+                description = "Compute CRC32, MD5, SHA1, SHA256, and SHA512 hashes of a file.",
                 inputSchema = new
                 {
                     type = "object",
                     properties = new Dictionary<string, object>
                     {
                         ["path"] = new { type = "string", description = "Relative path to the file." }
+                    },
+                    required = new[] { "path" }
+                }
+            },
+            new
+            {
+                name = "verify_sidecar",
+                description = "Verify a file's integrity against a sidecar checksum file. Looks for a sidecar file in the same directory as the target file by appending a hash extension (e.g. for 'movie.mkv' it checks 'movie.mkv.sha256', 'movie.mkv.md5', 'movie.mkv.sfv', etc.). Supported sidecar formats: .sha512, .sha256, .sha1, .md5 (and their *sum variants), and .sfv (CRC32). Returns the algorithm used, the expected hash from the sidecar, the freshly computed hash, and whether they match.",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new Dictionary<string, object>
+                    {
+                        ["path"] = new { type = "string", description = "Relative path to the file to verify (the data file, not the sidecar)." }
                     },
                     required = new[] { "path" }
                 }
@@ -316,6 +330,9 @@ public static partial class McpEndpoints
                 break;
             case "get_file_hashes":
                 await HandleToolGetFileHashes(context, id, arguments, options);
+                break;
+            case "verify_sidecar":
+                await HandleToolVerifySidecar(context, id, arguments, options);
                 break;
             case "get_directory_tree":
                 await HandleToolGetDirectoryTree(context, id, arguments, options);
