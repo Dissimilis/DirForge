@@ -13,7 +13,11 @@ namespace DirForge.IntegrationRunner.Unit;
 public sealed class JsonApiEndpointsUnitTests
 {
     private static async Task<(int StatusCode, string Body)> InvokeApiAsync(
-        DirForgeOptions options, string path, string method = "GET")
+        DirForgeOptions options,
+        string path,
+        string method = "GET",
+        int nextStatusCode = StatusCodes.Status404NotFound,
+        string nextBody = "")
     {
         var services = new ServiceCollection();
         services.AddSingleton(TestServiceFactory.CreateDirectoryListingService(options));
@@ -22,10 +26,13 @@ public sealed class JsonApiEndpointsUnitTests
 
         var appBuilder = new ApplicationBuilder(serviceProvider);
         appBuilder.MapJsonApiEndpoints(options);
-        appBuilder.Run(ctx =>
+        appBuilder.Run(async ctx =>
         {
-            ctx.Response.StatusCode = StatusCodes.Status404NotFound;
-            return Task.CompletedTask;
+            ctx.Response.StatusCode = nextStatusCode;
+            if (!string.IsNullOrEmpty(nextBody))
+            {
+                await ctx.Response.WriteAsync(nextBody);
+            }
         });
         var pipeline = appBuilder.Build();
 
@@ -87,5 +94,22 @@ public sealed class JsonApiEndpointsUnitTests
         var (status, _) = await InvokeApiAsync(options, "/api/browse", method: "PUT");
 
         Assert.AreEqual(405, status);
+    }
+
+    [TestMethod]
+    public async Task ApiStatsPath_BypassesJsonApiMiddleware()
+    {
+        using var tempDir = new TestTempDirectory("JsonApi-StatsBypass");
+        var options = TestOptionsFactory.Create(tempDir.Path);
+        options.EnableJsonApi = true;
+
+        var (status, body) = await InvokeApiAsync(
+            options,
+            "/api/stats",
+            nextStatusCode: StatusCodes.Status418ImATeapot,
+            nextBody: "passthrough");
+
+        Assert.AreEqual(StatusCodes.Status418ImATeapot, status);
+        Assert.AreEqual("passthrough", body);
     }
 }
