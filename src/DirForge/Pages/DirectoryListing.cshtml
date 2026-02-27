@@ -20,6 +20,69 @@
     <link rel="stylesheet" href="~/dirforge-assets/css/style.css">
 </head>
 <body data-share-token="@Model.ShareToken">
+@if (Model.DosMode)
+{
+    var dosFiles = Model.Entries.Where(e => !e.IsDirectory).ToList();
+    var dosDirs = Model.Entries.Where(e => e.IsDirectory && e.Name != "..").ToList();
+    var dosParent = Model.Entries.FirstOrDefault(e => e.Name == "..");
+    long dosTotalBytes = dosFiles.Sum(e => e.Size);
+    var dosPath = string.IsNullOrEmpty(Model.CurrentRelativePath) ? "\\" : Model.CurrentRelativePath.Replace('/', '\\');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MS-DOS Prompt</title>
+<style>
+html, body { margin: 0; padding: 0; background: #000; color: #aaaaaa; font-family: "Courier New", Courier, monospace; font-size: 14px; }
+pre { margin: 0; padding: 16px; white-space: pre-wrap; word-break: break-all; }
+a { color: #ffffff; text-decoration: none; }
+a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<pre>
+C:\>dir @dosPath
+
+ Volume in drive C has no label.
+ Volume Serial Number is DEAD-BEEF.
+
+ Directory of C:\@dosPath
+
+@if (dosParent != null)
+{
+    var ppEncoded = Uri.EscapeDataString(dosParent.Name);
+    var ppDate = dosParent.Modified.ToString("yyyy-MM-dd");
+    var ppTime = dosParent.Modified.ToString("HH:mm");
+    <text>@ppDate  @ppTime    <a href="@(Model.CurrentRequestPath)@ppEncoded@Model.OrderSuffix" style="color:inherit">             &lt;DIR&gt;          ..</a>
+</text>
+}
+@foreach (var d in dosDirs)
+{
+    var dEncoded = Uri.EscapeDataString(d.Name);
+    var dDate = d.Modified.ToString("yyyy-MM-dd");
+    var dTime = d.Modified.ToString("HH:mm");
+    <text>@dDate  @dTime    <a href="@(Model.CurrentRequestPath)@dEncoded/@Model.OrderSuffix" style="color:inherit">             &lt;DIR&gt;          @d.Name</a>
+</text>
+}
+
+@foreach (var f in dosFiles)
+{
+    var fEncoded = Uri.EscapeDataString(f.Name);
+    var fDate = f.Modified.ToString("yyyy-MM-dd");
+    var fTime = f.Modified.ToString("HH:mm");
+    var fSize = f.Size.ToString("N0").PadLeft(18);
+    <text>@fDate  @fTime    <a href="@(Model.CurrentRequestPath)@fEncoded?handler=View@Model.ShareActionSuffix" style="color:inherit">@fSize @f.Name</a>
+</text>
+}
+        @dosFiles.Count File(s)  @dosTotalBytes.ToString("N0") bytes
+        @dosDirs.Count Dir(s)   0 bytes free
+
+C:\>_
+</pre>
+</body>
+</html>
+    return;
+}
     <a href="#main-content" class="sr-only">Skip to content</a>
     <div class="container">
         @{

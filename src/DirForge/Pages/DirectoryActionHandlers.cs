@@ -56,6 +56,7 @@ public sealed class DirectoryActionHandlers
         var dashboardEnabled = _options.DashboardEnabled;
         var searchQuery = searchEnabled ? request.Query["q"].ToString().Trim() : string.Empty;
         var searchActive = searchEnabled && !string.IsNullOrWhiteSpace(searchQuery);
+        var dosMode = request.Query.ContainsKey("dos");
 
         if (_guards.IsDirectoryShareScopeViolation(shareContext, physicalPath))
         {
@@ -162,7 +163,8 @@ public sealed class DirectoryActionHandlers
             shareToken,
             shareHiddenInputToken,
             shareQuerySuffix,
-            shareActionSuffix);
+            shareActionSuffix,
+            dosMode);
 
         return DirectoryListingPageResult.FromState(state);
     }
@@ -186,7 +188,8 @@ public sealed class DirectoryActionHandlers
         string shareToken,
         string shareHiddenInputToken,
         string shareQuerySuffix,
-        string shareActionSuffix)
+        string shareActionSuffix,
+        bool dosMode = false)
     {
         return new DirectoryListingPageState
         {
@@ -195,28 +198,32 @@ public sealed class DirectoryActionHandlers
             CurrentRequestPath = DirectoryListingService.BuildRequestPath(relativePath),
             CurrentSortKey = currentSortKey,
             CurrentSortDirectionKey = currentSortDirectionKey,
-            OrderSuffix = BuildQuerySuffix(currentSortKey, currentSortDirectionKey, searchActive ? searchQuery : null, shareToken),
+            OrderSuffix = BuildQuerySuffix(currentSortKey, currentSortDirectionKey, searchActive ? searchQuery : null, shareToken, dosMode),
             TypeSortSuffix = BuildQuerySuffix(
                 "type",
                 GetSortDirectionQueryKey(GetNextSortDirection(sortMode, sortDirection, SortMode.Type)),
                 searchActive ? searchQuery : null,
-                shareToken),
+                shareToken,
+                dosMode),
             NameSortSuffix = BuildQuerySuffix(
                 "name",
                 GetSortDirectionQueryKey(GetNextSortDirection(sortMode, sortDirection, SortMode.Name)),
                 searchActive ? searchQuery : null,
-                shareToken),
+                shareToken,
+                dosMode),
             DateSortSuffix = BuildQuerySuffix(
                 "date",
                 GetSortDirectionQueryKey(GetNextSortDirection(sortMode, sortDirection, SortMode.Date)),
                 searchActive ? searchQuery : null,
-                shareToken),
+                shareToken,
+                dosMode),
             SizeSortSuffix = BuildQuerySuffix(
                 "size",
                 GetSortDirectionQueryKey(GetNextSortDirection(sortMode, sortDirection, SortMode.Size)),
                 searchActive ? searchQuery : null,
-                shareToken),
-            ClearSearchSuffix = BuildQuerySuffix(currentSortKey, currentSortDirectionKey, null, shareToken),
+                shareToken,
+                dosMode),
+            ClearSearchSuffix = BuildQuerySuffix(currentSortKey, currentSortDirectionKey, null, shareToken, dosMode),
             SearchEnabled = searchEnabled,
             DashboardEnabled = dashboardEnabled,
             SearchActive = searchActive,
@@ -235,7 +242,8 @@ public sealed class DirectoryActionHandlers
             AllowFolderDownload = _options.AllowFolderDownload,
             OpenArchivesInline = _options.OpenArchivesInline,
             SiteTitle = _options.SiteTitle,
-            PageTitle = (_options.SiteTitle ?? request.Host.ToString()) + " :: " + UriHelper.GetEncodedPathAndQuery(request)
+            PageTitle = (_options.SiteTitle ?? request.Host.ToString()) + " :: " + UriHelper.GetEncodedPathAndQuery(request),
+            DosMode = dosMode
         };
     }
 
@@ -315,7 +323,7 @@ public sealed class DirectoryActionHandlers
         return DirectoryListingService.GetDefaultSortDirection(targetSortMode);
     }
 
-    private static string BuildQuerySuffix(string sortKey, string sortDirection, string? searchQuery, string? shareToken)
+    private static string BuildQuerySuffix(string sortKey, string sortDirection, string? searchQuery, string? shareToken, bool dosMode = false)
     {
         var queryParts = new List<string> { sortKey, $"dir={sortDirection}" };
 
@@ -323,6 +331,9 @@ public sealed class DirectoryActionHandlers
         {
             queryParts.Add($"q={Uri.EscapeDataString(searchQuery)}");
         }
+
+        if (dosMode)
+            queryParts.Add("dos");
 
         ShareLinkService.AppendTokenQuery(queryParts, shareToken);
         return "?" + string.Join("&", queryParts);
@@ -377,4 +388,5 @@ public sealed class DirectoryListingPageState
     public string ShareHiddenInputToken { get; init; } = string.Empty;
     public string ShareQuerySuffix { get; init; } = string.Empty;
     public string ShareActionSuffix { get; init; } = string.Empty;
+    public bool DosMode { get; init; }
 }

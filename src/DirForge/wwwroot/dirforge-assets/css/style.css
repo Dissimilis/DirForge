@@ -173,7 +173,7 @@ a:visited {
    -------------------------------------------------------------------------- */
 
 .container {
-  max-width: 1200px;
+  max-width: 1600px;
   margin: var(--space-lg) auto;
   padding: 0 var(--space-md);
 }
@@ -441,19 +441,22 @@ table.listing thead th:first-child {
   border-top-left-radius: var(--radius-lg);
 }
 
-/* Column: Modified — centered */
+/* Column: Modified — centered, fixed width */
 table.listing thead th:nth-child(3) {
   text-align: center;
+  width: 155px;
 }
 
-/* Column: Actions — right-aligned */
+/* Column: Actions — right-aligned, fixed width */
 table.listing thead th:nth-child(5) {
   text-align: right;
+  width: 200px;
 }
 
-/* Column: Size — right-aligned */
+/* Column: Size — right-aligned, fixed width */
 table.listing thead th:nth-child(4) {
   text-align: right;
+  width: 100px;
 }
 
 /* Last header — round corner */

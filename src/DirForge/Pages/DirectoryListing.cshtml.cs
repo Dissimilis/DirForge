@@ -76,6 +76,7 @@ public sealed class DirectoryListingModel : PageModel
     public string ShareHiddenInputToken { get; private set; } = string.Empty;
     public string ShareQuerySuffix { get; private set; } = string.Empty;
     public string ShareActionSuffix { get; private set; } = string.Empty;
+    public bool DosMode { get; private set; }
     public string ShareWarning => _options.ShareSecretWarning
         ?? "Changing ShareSecret invalidates all existing share links.";
 
@@ -123,6 +124,7 @@ public sealed class DirectoryListingModel : PageModel
         ShareHiddenInputToken = state.ShareHiddenInputToken;
         ShareQuerySuffix = state.ShareQuerySuffix;
         ShareActionSuffix = state.ShareActionSuffix;
+        DosMode = state.DosMode;
     }
 
     public IActionResult OnGetDirectorySizes(string? requestPath)
