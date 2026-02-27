@@ -146,6 +146,7 @@ Defaults are defined in `src/DirForge/appsettings.json`. Override any value with
 | `EnableS3Endpoint` | `false` | Read-only S3 API at `/s3/`. |
 | `EnableJsonApi` | `true` | RESTful JSON API at `/api/`. |
 | `EnableMcpEndpoint` | `true` | MCP server at `/mcp/`. |
+| `ListingCacheTtlSeconds` | `2` | Directory listing cache TTL in seconds (1–2592000). |
 
 ## Security
 

@@ -9,11 +9,7 @@ public sealed class DirectoryListingService
 {
     internal const int SearchResultLimit = 200;
 
-    private static readonly MemoryCacheEntryOptions ListingCacheEntryOptions = new()
-    {
-        AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(2),
-        SlidingExpiration = TimeSpan.FromSeconds(2)
-    };
+    private readonly MemoryCacheEntryOptions _listingCacheEntryOptions;
 
     private static readonly EnumerationOptions NonRecursiveOptions = new()
     {
@@ -53,6 +49,11 @@ public sealed class DirectoryListingService
             .Where(static segments => segments.Length > 0)
             .ToArray();
         _deniedDownloadExtensions = new HashSet<string>(_options.DenyDownloadExtensions, StringComparer.OrdinalIgnoreCase);
+        _listingCacheEntryOptions = new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(_options.ListingCacheTtlSeconds),
+            SlidingExpiration = TimeSpan.FromSeconds(_options.ListingCacheTtlSeconds)
+        };
     }
 
     // --- Path normalization and building ---
@@ -364,7 +365,7 @@ public sealed class DirectoryListingService
 
         var entries = ReadEntries(physicalPath);
         SortEntries(entries, sortMode, sortDirection);
-        _memoryCache.Set(cacheKey, entries, ListingCacheEntryOptions);
+        _memoryCache.Set(cacheKey, entries, _listingCacheEntryOptions);
         return entries;
     }
 
@@ -388,7 +389,7 @@ public sealed class DirectoryListingService
 
         var entries = SearchEntriesRecursive(physicalPath, searchQuery.Trim(), maxResults, out truncated);
         SortEntries(entries, sortMode, sortDirection);
-        _memoryCache.Set(cacheKey, (entries, truncated), ListingCacheEntryOptions);
+        _memoryCache.Set(cacheKey, (entries, truncated), _listingCacheEntryOptions);
         return entries;
     }
 

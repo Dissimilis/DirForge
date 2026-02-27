@@ -47,7 +47,7 @@ Unit tests: `dotnet test src/DirForge.IntegrationRunner --filter TestCategory=Un
 
 | Service | Responsibility |
 |---------|---------------|
-| `DirectoryListingService` | File ops, path safety, search, directory sizing, hash generation, listing cache (2s TTL) |
+| `DirectoryListingService` | File ops, path safety, search, directory sizing, hash generation, listing cache (configurable TTL, default 2s) |
 | `ShareLinkService` | HMAC-SHA256 signed share tokens (create, validate, one-time nonces) |
 | `ArchiveBrowseService` | ZIP/TAR/GZ parsing, virtual path traversal protection within archives |
 | `DashboardMetricsService` | Thread-safe in-memory metrics (requests, status codes, downloads, timeseries) |
@@ -77,7 +77,7 @@ Served from `wwwroot` at `/dirforge-assets/*` with 1-year cache headers. Fronten
 
 ## Key Environment Variables
 
-`RootPath`, `Port`, `ListenIp`, `BasicAuthUser`/`BasicAuthPass`, `BearerToken`/`BearerTokenHeaderName`, `EnableSearch`, `AllowFileDownload`, `AllowFolderDownload`, `OpenArchivesInline`, `EnableSharing`/`ShareSecret`, `HideDotfiles`, `HidePathPatterns`, `DenyDownloadExtensions`, `MaxZipSize`, `DefaultTheme`, `SiteTitle`, `ExternalAuthEnabled`, `EnableWebDav`, `EnableS3Endpoint`/`S3BucketName`/`S3Region`/`S3AccessKeyId`/`S3SecretAccessKey`, `EnableJsonApi`, `EnableMcpEndpoint`/`McpReadFileSizeLimit`, `DashboardEnabled`, `EnableDefaultRateLimiter`, `OperationTimeBudgetMs`.
+`RootPath`, `Port`, `ListenIp`, `BasicAuthUser`/`BasicAuthPass`, `BearerToken`/`BearerTokenHeaderName`, `EnableSearch`, `AllowFileDownload`, `AllowFolderDownload`, `OpenArchivesInline`, `EnableSharing`/`ShareSecret`, `HideDotfiles`, `HidePathPatterns`, `DenyDownloadExtensions`, `MaxZipSize`, `DefaultTheme`, `SiteTitle`, `ExternalAuthEnabled`, `EnableWebDav`, `EnableS3Endpoint`/`S3BucketName`/`S3Region`/`S3AccessKeyId`/`S3SecretAccessKey`, `EnableJsonApi`, `EnableMcpEndpoint`/`McpReadFileSizeLimit`, `DashboardEnabled`, `EnableDefaultRateLimiter`, `OperationTimeBudgetMs`, `ListingCacheTtlSeconds`.
 
 Flat keys, PascalCase. Validation at startup via `DirForgeOptionsValidator`; normalization via `PostConfigure` in `Program.cs`.
 

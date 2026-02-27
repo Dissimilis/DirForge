@@ -53,7 +53,8 @@ internal static class TestOptionsFactory
             EnableMcpEndpoint = false,
             McpReadFileSizeLimit = 1024 * 1024,
             BearerToken = null,
-            BearerTokenHeaderName = "Authorization"
+            BearerTokenHeaderName = "Authorization",
+            ListingCacheTtlSeconds = 2
         };
     }
 }
