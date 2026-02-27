@@ -63,7 +63,7 @@ public static class OperationalEndpointExtensions
                 context.Response.Headers.CacheControl = "no-store";
                 context.Response.ContentType = "text/plain; charset=utf-8";
                 var ready = report.Status == HealthStatus.Healthy;
-                dashboardMetrics.RecordReadyProbe(ready);
+                dashboardMetrics.RecordReadyProbe();
 
                 if (!HttpMethods.IsHead(context.Request.Method))
                 {

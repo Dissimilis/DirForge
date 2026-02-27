@@ -108,7 +108,7 @@ public sealed class DirectoryActionHandlers
                 var searchElapsedMs = (long)Math.Round(
                     Stopwatch.GetElapsedTime(searchStartTimestamp).TotalMilliseconds,
                     MidpointRounding.AwayFromZero);
-                _dashboardMetrics.RecordSearch(searchTruncated, searchElapsedMs);
+                _dashboardMetrics.RecordSearch(searchElapsedMs);
             }
             else
             {

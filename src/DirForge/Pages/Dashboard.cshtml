@@ -183,57 +183,16 @@
                     <div class="k">Ready Hits</div>
                     <div class="v">@Model.Snapshot.ReadyProbeCount</div>
                 </div>
+
             </div>
         </article>
 
-        <article class="card split-6">
-            <h2>Traffic Chart (Last 5 Minutes)</h2>
-            <div class="traffic-chart">
-                <div class="traffic-summary">
-                    <div class="traffic-stat">
-                        <div class="k">Current RPS</div>
-                        <div class="v">@latestRps</div>
-                    </div>
-                    <div class="traffic-stat">
-                        <div class="k">Peak RPS (Window)</div>
-                        <div class="v">@maxRps</div>
-                    </div>
-                    <div class="traffic-stat">
-                        <div class="k">Total Download Traffic</div>
-                        <div class="v">@HumanBytes(Model.TotalDownloadTrafficBytes)</div>
-                    </div>
-                </div>
-                <div class="traffic-chart-shell">
-                    <svg viewBox="0 0 @N(chartWidth) @N(chartHeight)" class="traffic-chart-svg" aria-label="Requests per second over the last five minutes" role="img">
-                        @for (var i = 0; i <= 4; i++)
-                        {
-                            var ratio = i / 4d;
-                            var y = chartPadTop + (ratio * plotHeight);
-                            <line class="chart-grid" x1="@N(chartPadLeft)" y1="@N(y)" x2="@N(chartWidth - chartPadRight)" y2="@N(y)"></line>
-                        }
-                        @if (!string.IsNullOrEmpty(polylinePoints))
-                        {
-                            <polyline class="chart-line" points="@polylinePoints"></polyline>
-                        }
-                    </svg>
-                    <div class="chart-range">
-                        <span>@startLabel</span>
-                        <span>@endLabel</span>
-                    </div>
-                </div>
-            </div>
-        </article>
-
-        <article class="card split-6">
+        <article class="card split-6 row-span-2">
             <h2>Feature Metrics</h2>
             <div class="metrics">
                 <div class="metric">
                     <div class="k">Search Requests</div>
                     <div class="v">@Model.Snapshot.SearchRequests</div>
-                </div>
-                <div class="metric">
-                    <div class="k">Search Truncated</div>
-                    <div class="v">@Model.Snapshot.SearchTruncatedRequests</div>
                 </div>
                 <div class="metric">
                     <div class="k">Avg Search Time</div>
@@ -254,14 +213,6 @@
                 <div class="metric">
                     <div class="k">ZIP Source Bytes</div>
                     <div class="v">@HumanBytes(Model.Snapshot.ZipDownloadBytes)</div>
-                </div>
-                <div class="metric">
-                    <div class="k">ZIP Cancelled</div>
-                    <div class="v">@Model.Snapshot.ZipCancelledCount</div>
-                </div>
-                <div class="metric">
-                    <div class="k">ZIP Size Limit Hits</div>
-                    <div class="v">@Model.Snapshot.ZipSizeLimitHitCount</div>
                 </div>
                 <div class="metric">
                     <div class="k">Archive Browses</div>
@@ -314,6 +265,76 @@
                 <div class="metric">
                     <div class="k">WebDAV Download Bytes</div>
                     <div class="v">@HumanBytes(Model.Snapshot.WebDavFileDownloadBytes)</div>
+                </div>
+                <div class="metric">
+                    <div class="k">S3 Requests</div>
+                    <div class="v">@Model.Snapshot.S3RequestCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">S3 File Downloads</div>
+                    <div class="v">@Model.Snapshot.S3FileDownloadCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">S3 Download Bytes</div>
+                    <div class="v">@HumanBytes(Model.Snapshot.S3FileDownloadBytes)</div>
+                </div>
+                <div class="metric">
+                    <div class="k">API Requests</div>
+                    <div class="v">@Model.Snapshot.ApiRequestCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">API File Downloads</div>
+                    <div class="v">@Model.Snapshot.ApiFileDownloadCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">API Download Bytes</div>
+                    <div class="v">@HumanBytes(Model.Snapshot.ApiFileDownloadBytes)</div>
+                </div>
+                <div class="metric">
+                    <div class="k">MCP Requests</div>
+                    <div class="v">@Model.Snapshot.McpRequestCount</div>
+                </div>
+                <div class="metric">
+                    <div class="k">MCP Tool Calls</div>
+                    <div class="v">@Model.Snapshot.McpToolCallCount</div>
+                </div>
+            </div>
+        </article>
+
+        <article class="card split-6">
+            <h2>Traffic Chart (Last 5 Minutes)</h2>
+            <div class="traffic-chart">
+                <div class="traffic-summary">
+                    <div class="traffic-stat">
+                        <div class="k">Current RPS</div>
+                        <div class="v">@latestRps</div>
+                    </div>
+                    <div class="traffic-stat">
+                        <div class="k">Peak RPS (Window)</div>
+                        <div class="v">@maxRps</div>
+                    </div>
+                    <div class="traffic-stat">
+                        <div class="k">Total Download Traffic</div>
+                        <div class="v">@HumanBytes(Model.TotalDownloadTrafficBytes)</div>
+                    </div>
+                </div>
+                <div class="traffic-chart-shell">
+                    <svg viewBox="0 0 @N(chartWidth) @N(chartHeight)" class="traffic-chart-svg" aria-label="Requests per second over the last five minutes" role="img">
+                        @for (var i = 0; i <= 4; i++)
+                        {
+                            var ratio = i / 4d;
+                            var y = chartPadTop + (ratio * plotHeight);
+                            <line class="chart-grid" x1="@N(chartPadLeft)" y1="@N(y)" x2="@N(chartWidth - chartPadRight)" y2="@N(y)"></line>
+                        }
+                        @if (!string.IsNullOrEmpty(polylinePoints))
+                        {
+                            <polyline class="chart-line" points="@polylinePoints"></polyline>
+                        }
+                    </svg>
+                    <div class="chart-range">
+                        <span>@startLabel</span>
+                        <span>@endLabel</span>
+                    </div>
                 </div>
             </div>
         </article>

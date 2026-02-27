@@ -235,6 +235,10 @@ tr:last-child td {
     grid-column: span 12;
 }
 
+.row-span-2 {
+    grid-row: span 2;
+}
+
 .mono-dim {
     color: var(--ink-dim);
 }
@@ -324,6 +328,10 @@ tr:last-child td {
 @media (max-width: 1050px) {
     .split-6, .split-4, .split-8, .split-3 {
         grid-column: span 12;
+    }
+
+    .row-span-2 {
+        grid-row: span 1;
     }
 }
 

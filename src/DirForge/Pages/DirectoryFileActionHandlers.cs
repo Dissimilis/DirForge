@@ -372,7 +372,6 @@ public sealed class DirectoryFileActionHandlers
                     var fileLength = new FileInfo(filePath).Length;
                     if (maxZip > 0 && totalBytes + fileLength > maxZip)
                     {
-                        _dashboardMetrics.RecordZipSizeLimitHit();
                         _logger.LogWarning("ZIP size limit ({MaxZipSize} bytes) reached for '{Path}', stopping", maxZip, relativePath);
                         break;
                     }
@@ -404,7 +403,6 @@ public sealed class DirectoryFileActionHandlers
         }
         catch (OperationCanceledException)
         {
-            _dashboardMetrics.RecordZipCancelled();
             _logger.LogDebug("ZIP download cancelled for '{RelativePath}'", relativePath);
         }
         catch (Exception ex)

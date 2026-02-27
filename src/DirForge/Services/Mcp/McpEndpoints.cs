@@ -104,6 +104,7 @@ public static partial class McpEndpoints
                 await HandleToolsListAsync(context, id, options);
                 break;
             case "tools/call":
+                metrics?.RecordMcpToolCall();
                 await HandleToolsCallAsync(context, id, @params, options);
                 break;
             case "prompts/list":

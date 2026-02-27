@@ -28,14 +28,11 @@ public sealed class DashboardMetricsService
     private long _totalDurationMs;
     private long _durationCount;
     private long _searchRequests;
-    private long _searchTruncatedRequests;
     private long _searchTotalDurationMs;
     private long _fileDownloadCount;
     private long _fileDownloadBytes;
     private long _zipDownloadCount;
     private long _zipDownloadBytes;
-    private long _zipCancelledCount;
-    private long _zipSizeLimitHitCount;
     private long _archiveBrowseCount;
     private long _archiveInnerDownloadCount;
     private long _archiveInnerDownloadBytes;
@@ -52,11 +49,13 @@ public sealed class DashboardMetricsService
     private long _s3FileDownloadCount;
     private long _s3FileDownloadBytes;
     private long _apiRequestCount;
+    private long _apiFileDownloadCount;
+    private long _apiFileDownloadBytes;
     private long _mcpRequestCount;
+    private long _mcpToolCallCount;
     private long _rateLimitRejectionCount;
     private long _healthProbeCount;
     private long _readyProbeCount;
-    private bool _lastReadyState;
     private DateTimeOffset? _lastReadyProbeUtc;
     private DateTimeOffset? _lastHealthProbeUtc;
 
@@ -119,14 +118,10 @@ public sealed class DashboardMetricsService
         }
     }
 
-    public void RecordSearch(bool truncated, long elapsedMs)
+    public void RecordSearch(long elapsedMs)
     {
         Interlocked.Increment(ref _searchRequests);
         Interlocked.Add(ref _searchTotalDurationMs, Math.Max(0L, elapsedMs));
-        if (truncated)
-        {
-            Interlocked.Increment(ref _searchTruncatedRequests);
-        }
     }
 
     public void RecordFileDownload(long fileSizeBytes)
@@ -139,16 +134,6 @@ public sealed class DashboardMetricsService
     {
         Interlocked.Increment(ref _zipDownloadCount);
         Interlocked.Add(ref _zipDownloadBytes, Math.Max(0L, zipSourceBytes));
-    }
-
-    public void RecordZipCancelled()
-    {
-        Interlocked.Increment(ref _zipCancelledCount);
-    }
-
-    public void RecordZipSizeLimitHit()
-    {
-        Interlocked.Increment(ref _zipSizeLimitHitCount);
     }
 
     public void RecordArchiveBrowse()
@@ -219,9 +204,20 @@ public sealed class DashboardMetricsService
         Interlocked.Increment(ref _apiRequestCount);
     }
 
+    public void RecordApiFileDownload(long bytes)
+    {
+        Interlocked.Increment(ref _apiFileDownloadCount);
+        Interlocked.Add(ref _apiFileDownloadBytes, Math.Max(0L, bytes));
+    }
+
     public void RecordMcpRequest()
     {
         Interlocked.Increment(ref _mcpRequestCount);
+    }
+
+    public void RecordMcpToolCall()
+    {
+        Interlocked.Increment(ref _mcpToolCallCount);
     }
 
     public void RecordRateLimitRejection()
@@ -235,10 +231,9 @@ public sealed class DashboardMetricsService
         _lastHealthProbeUtc = DateTimeOffset.UtcNow;
     }
 
-    public void RecordReadyProbe(bool ready)
+    public void RecordReadyProbe()
     {
         Interlocked.Increment(ref _readyProbeCount);
-        _lastReadyState = ready;
         _lastReadyProbeUtc = DateTimeOffset.UtcNow;
     }
 
@@ -330,14 +325,11 @@ public sealed class DashboardMetricsService
             EndpointCounts = endpointCounts,
             LatestUsage = usage,
             SearchRequests = searchRequests,
-            SearchTruncatedRequests = Interlocked.Read(ref _searchTruncatedRequests),
             AverageSearchMs = searchAverageMs,
             FileDownloadCount = Interlocked.Read(ref _fileDownloadCount),
             FileDownloadBytes = Interlocked.Read(ref _fileDownloadBytes),
             ZipDownloadCount = Interlocked.Read(ref _zipDownloadCount),
             ZipDownloadBytes = Interlocked.Read(ref _zipDownloadBytes),
-            ZipCancelledCount = Interlocked.Read(ref _zipCancelledCount),
-            ZipSizeLimitHitCount = Interlocked.Read(ref _zipSizeLimitHitCount),
             ArchiveBrowseCount = Interlocked.Read(ref _archiveBrowseCount),
             ArchiveInnerDownloadCount = Interlocked.Read(ref _archiveInnerDownloadCount),
             ArchiveInnerDownloadBytes = Interlocked.Read(ref _archiveInnerDownloadBytes),
@@ -354,11 +346,13 @@ public sealed class DashboardMetricsService
             S3FileDownloadCount = Interlocked.Read(ref _s3FileDownloadCount),
             S3FileDownloadBytes = Interlocked.Read(ref _s3FileDownloadBytes),
             ApiRequestCount = Interlocked.Read(ref _apiRequestCount),
+            ApiFileDownloadCount = Interlocked.Read(ref _apiFileDownloadCount),
+            ApiFileDownloadBytes = Interlocked.Read(ref _apiFileDownloadBytes),
             McpRequestCount = Interlocked.Read(ref _mcpRequestCount),
+            McpToolCallCount = Interlocked.Read(ref _mcpToolCallCount),
             RateLimitRejectionCount = Interlocked.Read(ref _rateLimitRejectionCount),
             HealthProbeCount = Interlocked.Read(ref _healthProbeCount),
             ReadyProbeCount = Interlocked.Read(ref _readyProbeCount),
-            LastReadyState = _lastReadyState,
             LastReadyProbeUtc = _lastReadyProbeUtc,
             LastHealthProbeUtc = _lastHealthProbeUtc
         };
@@ -375,14 +369,11 @@ public sealed class DashboardMetricsService
         ("dirforge_request_duration_ms_p50", "gauge", "P50 request latency in milliseconds.", (s, _) => $"{s.P50LatencyMs:F4}"),
         ("dirforge_request_duration_ms_p95", "gauge", "P95 request latency in milliseconds.", (s, _) => $"{s.P95LatencyMs:F4}"),
         ("dirforge_search_requests_total", "counter", "Total search operations.", (s, _) => $"{s.SearchRequests}"),
-        ("dirforge_search_truncated_total", "counter", "Total truncated search operations.", (s, _) => $"{s.SearchTruncatedRequests}"),
         ("dirforge_search_duration_ms_avg", "gauge", "Average search duration in milliseconds.", (s, _) => $"{s.AverageSearchMs:F4}"),
         ("dirforge_file_downloads_total", "counter", "Total direct file downloads.", (s, _) => $"{s.FileDownloadCount}"),
         ("dirforge_file_download_bytes_total", "counter", "Total direct file download bytes.", (s, _) => $"{s.FileDownloadBytes}"),
         ("dirforge_zip_downloads_total", "counter", "Total ZIP folder downloads.", (s, _) => $"{s.ZipDownloadCount}"),
         ("dirforge_zip_download_bytes_total", "counter", "Total ZIP source bytes written.", (s, _) => $"{s.ZipDownloadBytes}"),
-        ("dirforge_zip_cancelled_total", "counter", "Total cancelled ZIP operations.", (s, _) => $"{s.ZipCancelledCount}"),
-        ("dirforge_zip_size_limit_hits_total", "counter", "Total ZIP size limit hit events.", (s, _) => $"{s.ZipSizeLimitHitCount}"),
         ("dirforge_archive_browse_total", "counter", "Total archive browse page opens.", (s, _) => $"{s.ArchiveBrowseCount}"),
         ("dirforge_archive_inner_downloads_total", "counter", "Total downloads of files from inside archives.", (s, _) => $"{s.ArchiveInnerDownloadCount}"),
         ("dirforge_archive_inner_download_bytes_total", "counter", "Total bytes downloaded from archive inner files.", (s, _) => $"{s.ArchiveInnerDownloadBytes}"),
@@ -399,11 +390,14 @@ public sealed class DashboardMetricsService
         ("dirforge_s3_file_downloads_total", "counter", "Total S3 file downloads.", (s, _) => $"{s.S3FileDownloadCount}"),
         ("dirforge_s3_file_download_bytes_total", "counter", "Total S3 file download bytes.", (s, _) => $"{s.S3FileDownloadBytes}"),
         ("dirforge_api_requests_total", "counter", "Total JSON API requests.", (s, _) => $"{s.ApiRequestCount}"),
+        ("dirforge_api_file_downloads_total", "counter", "Total JSON API file downloads.", (s, _) => $"{s.ApiFileDownloadCount}"),
+        ("dirforge_api_file_download_bytes_total", "counter", "Total JSON API file download bytes.", (s, _) => $"{s.ApiFileDownloadBytes}"),
         ("dirforge_mcp_requests_total", "counter", "Total MCP endpoint requests.", (s, _) => $"{s.McpRequestCount}"),
+        ("dirforge_mcp_tool_calls_total", "counter", "Total MCP tools/call invocations.", (s, _) => $"{s.McpToolCallCount}"),
         ("dirforge_rate_limit_rejections_total", "counter", "Total 429 rejections.", (s, _) => $"{s.RateLimitRejectionCount}"),
         ("dirforge_healthz_hits_total", "counter", "Total liveness probe hits (/health and /healthz).", (s, _) => $"{s.HealthProbeCount}"),
         ("dirforge_readyz_hits_total", "counter", "Total /readyz probe hits.", (s, _) => $"{s.ReadyProbeCount}"),
-        ("dirforge_readyz_last_state", "gauge", "Last observed ready state (1=ready).", (s, _) => s.LastReadyState ? "1" : "0"),
+
     ];
 
     public string RenderPrometheus(DirForgeOptions options)

@@ -14,14 +14,11 @@ public sealed class DashboardMetricsSnapshot
     public IReadOnlyDictionary<string, long> EndpointCounts { get; init; } = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
     public IReadOnlyList<DashboardUsageEvent> LatestUsage { get; init; } = [];
     public long SearchRequests { get; init; }
-    public long SearchTruncatedRequests { get; init; }
     public double AverageSearchMs { get; init; }
     public long FileDownloadCount { get; init; }
     public long FileDownloadBytes { get; init; }
     public long ZipDownloadCount { get; init; }
     public long ZipDownloadBytes { get; init; }
-    public long ZipCancelledCount { get; init; }
-    public long ZipSizeLimitHitCount { get; init; }
     public long ArchiveBrowseCount { get; init; }
     public long ArchiveInnerDownloadCount { get; init; }
     public long ArchiveInnerDownloadBytes { get; init; }
@@ -38,11 +35,13 @@ public sealed class DashboardMetricsSnapshot
     public long S3FileDownloadCount { get; init; }
     public long S3FileDownloadBytes { get; init; }
     public long ApiRequestCount { get; init; }
+    public long ApiFileDownloadCount { get; init; }
+    public long ApiFileDownloadBytes { get; init; }
     public long McpRequestCount { get; init; }
+    public long McpToolCallCount { get; init; }
     public long RateLimitRejectionCount { get; init; }
     public long HealthProbeCount { get; init; }
     public long ReadyProbeCount { get; init; }
-    public bool LastReadyState { get; init; }
     public DateTimeOffset? LastReadyProbeUtc { get; init; }
     public DateTimeOffset? LastHealthProbeUtc { get; init; }
 }

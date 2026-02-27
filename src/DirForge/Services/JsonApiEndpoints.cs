@@ -443,6 +443,7 @@ public static class JsonApiEndpoints
             $"attachment; filename=\"{Uri.EscapeDataString(fileInfo.Name)}\"";
 
         metrics?.RecordFileDownload(fileInfo.Length);
+        metrics?.RecordApiFileDownload(fileInfo.Length);
 
         await using var stream = new FileStream(physicalPath, FileMode.Open, FileAccess.Read, FileShare.Read, 65536,
             FileOptions.Asynchronous | FileOptions.SequentialScan);
