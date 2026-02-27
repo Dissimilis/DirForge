@@ -132,7 +132,21 @@ builder.Services.AddRazorPages(options =>
         options.Conventions.AuthorizePage("/Dashboard", DashboardBasicAuthenticationHandler.PolicyName);
     }
 });
-builder.Services.AddDataProtection().UseEphemeralDataProtectionProvider();
+builder.Services.AddSingleton<IDataProtectionProvider, EphemeralDataProtectionProvider>();
+
+// Remove the DataProtection hosted service registered by AddRazorPages/AddMvcCore.
+// It eagerly initializes key management (FileSystemXmlRepository) on startup, which logs
+// container warnings. Unnecessary since we use EphemeralDataProtectionProvider.
+for (var i = builder.Services.Count - 1; i >= 0; i--)
+{
+    var descriptor = builder.Services[i];
+    if (descriptor.ServiceType == typeof(IHostedService) &&
+        descriptor.ImplementationType?.FullName == "Microsoft.AspNetCore.DataProtection.Internal.DataProtectionHostedService")
+    {
+        builder.Services.RemoveAt(i);
+    }
+}
+
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])
     .AddCheck<RootPathReadableHealthCheck>("root_path_readable", tags: ["ready"]);
