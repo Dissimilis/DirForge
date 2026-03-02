@@ -191,8 +191,8 @@ if (options.DashboardEnabled)
 }
 
 app.Logger.LogInformation(
-    "API stats endpoint enabled at {ApiStatsPath} ({DashboardAuthState}).",
-    DashboardRouteHelper.ApiStatsPath,
+    "Dashboard stats endpoint enabled at {DashboardStatsPath} ({DashboardAuthState}).",
+    DashboardRouteHelper.DashboardStatsPath,
     dashboardAuthState);
 
 if (options.EnableWebDav)

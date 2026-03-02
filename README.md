@@ -121,7 +121,7 @@ With the default config profile in this repository, sharing, dashboard, and metr
 - Prometheus metrics at `/metrics`
 - RESTful JSON API at `/api/` (browse, search, share, archive)
 - MCP server at `/mcp/` (JSON-RPC 2.0, Streamable HTTP transport)
-- Integration stats JSON at `/api/stats`
+- Integration stats JSON at `/dashboard/stats`
 - Distroless chiseled container image
 
 ## Configuration
@@ -172,7 +172,7 @@ DashboardAuthPass=change-this-too
 - Hidden paths and denied extensions are enforced for both direct downloads and ZIP output.
 - Dashboard and metrics data are in-memory only and reset on restart.
 - If `DashboardAuthUser` / `DashboardAuthPass` are set, `/dashboard` and `/metrics` accept only those credentials.
-- `/api/stats` uses the same dashboard auth behavior: if dashboard credentials are configured, they are required.
+- `/dashboard/stats` uses the same dashboard auth behavior: if dashboard credentials are configured, they are required.
 - Static UI assets are served from `/dirforge-assets/*` (plus `/favicon.ico`) and are intentionally public.
 
 ## WebDAV
@@ -266,10 +266,10 @@ Set `EnableS3Endpoint=false` (default) to disable the endpoint entirely.
 
 For homelab dashboards (Homarr, Homepage, etc.), DirForge exposes:
 
-- `GET /api/stats`
+- `GET /dashboard/stats`
 
-The endpoint returns compact JSON with 10 basic fields:
-`generatedAtUtc`, `ready`, `uptimeSeconds`, `totalRequests`, `inFlightRequests`, `requestsPerMinute`, `averageLatencyMs`, `totalDownloadTrafficBytes`, `fileCount`, `zipCount`.
+The endpoint returns compact JSON with 11 basic fields:
+`generatedAtUtc`, `ready`, `uptimeSeconds`, `totalRequests`, `inFlightRequests`, `requestsPerMinute`, `averageLatencyMs`, `totalDownloadTrafficBytes`, `totalDownloadCount`, `fileCount`, `zipCount`.
 
 ## Contributing
 

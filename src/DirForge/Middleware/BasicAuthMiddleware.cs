@@ -355,8 +355,8 @@ public sealed class BasicAuthMiddleware
             return true;
         }
 
-        // /api/stats bypasses global auth only when dashboard has its own auth
-        if (path.Equals(DashboardRouteHelper.ApiStatsPath, StringComparison.OrdinalIgnoreCase) && _dashboardAuthEnabled)
+        // /dashboard/stats bypasses global auth only when dashboard has its own auth
+        if (path.Equals(DashboardRouteHelper.DashboardStatsPath, StringComparison.OrdinalIgnoreCase) && _dashboardAuthEnabled)
         {
             return true;
         }

@@ -15,7 +15,7 @@ public static class OperationalEndpointExtensions
     {
         MapHealthEndpoints(app);
         MapMetricsEndpoint(app, options);
-        MapApiStatsEndpoint(app, options);
+        MapDashboardStatsEndpoint(app, options);
 
         return app;
     }
@@ -111,12 +111,11 @@ public static class OperationalEndpointExtensions
         }
     }
 
-    private static void MapApiStatsEndpoint(
+    private static void MapDashboardStatsEndpoint(
         IEndpointRouteBuilder app,
         DirForgeOptions options)
     {
-        var apiGroup = app.MapGroup(DashboardRouteHelper.ApiPath);
-        var apiStatsEndpoint = apiGroup.MapGet(DashboardRouteHelper.ApiStatsPathSegment, async (HttpContext context, DashboardMetricsService dashboardMetrics) =>
+        var dashboardStatsEndpoint = app.MapGet(DashboardRouteHelper.DashboardStatsPath, async (HttpContext context, DashboardMetricsService dashboardMetrics) =>
             {
                 context.Response.Headers.CacheControl = "no-store";
                 context.Response.ContentType = "application/json; charset=utf-8";
@@ -129,11 +128,11 @@ public static class OperationalEndpointExtensions
                 var response = CreateApiStatsResponse(options, dashboardMetrics.CreateSnapshot());
                 await context.Response.WriteAsJsonAsync(response);
             })
-            .WithName("ApiStats");
+            .WithName("DashboardStats");
 
         if (options.DashboardAuthEnabled)
         {
-            apiStatsEndpoint.RequireAuthorization(DashboardBasicAuthenticationHandler.PolicyName);
+            dashboardStatsEndpoint.RequireAuthorization(DashboardBasicAuthenticationHandler.PolicyName);
         }
     }
 
@@ -149,6 +148,7 @@ public static class OperationalEndpointExtensions
             RequestsPerMinute = snapshot.RequestsPerMinute,
             AverageLatencyMs = snapshot.AverageLatencyMs,
             TotalDownloadTrafficBytes = snapshot.FileDownloadBytes + snapshot.ZipDownloadBytes,
+            TotalDownloadCount = snapshot.FileDownloadCount + snapshot.ZipDownloadCount,
             FileCount = snapshot.FileDownloadCount,
             ZipCount = snapshot.ZipDownloadCount
         };

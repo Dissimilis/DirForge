@@ -96,20 +96,4 @@ public sealed class JsonApiEndpointsUnitTests
         Assert.AreEqual(405, status);
     }
 
-    [TestMethod]
-    public async Task ApiStatsPath_BypassesJsonApiMiddleware()
-    {
-        using var tempDir = new TestTempDirectory("JsonApi-StatsBypass");
-        var options = TestOptionsFactory.Create(tempDir.Path);
-        options.EnableJsonApi = true;
-
-        var (status, body) = await InvokeApiAsync(
-            options,
-            "/api/stats",
-            nextStatusCode: StatusCodes.Status418ImATeapot,
-            nextBody: "passthrough");
-
-        Assert.AreEqual(StatusCodes.Status418ImATeapot, status);
-        Assert.AreEqual("passthrough", body);
-    }
 }

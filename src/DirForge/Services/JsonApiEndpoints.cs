@@ -36,14 +36,6 @@ public static class JsonApiEndpoints
                 return;
             }
 
-            // /api/stats is owned by operational endpoints and must bypass JSON API routing.
-            if (path.Equals(DashboardRouteHelper.ApiStatsPath, StringComparison.OrdinalIgnoreCase) ||
-                path.Equals($"{DashboardRouteHelper.ApiStatsPath}/", StringComparison.OrdinalIgnoreCase))
-            {
-                await next();
-                return;
-            }
-
             await HandleApiRequestAsync(context, path, options);
         });
 

@@ -29,6 +29,7 @@ RUN case "$TARGETARCH" in \
       --self-contained true \
       -p:InvariantGlobalization=true \
       $VERSION_FLAG \
+      ${BUILD_DATE:+-p:BuildDate=$BUILD_DATE} \
       -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/runtime-deps:10.0-alpine AS runtime

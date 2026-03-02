@@ -13,12 +13,23 @@ public sealed class DirectoryListingModel : PageModel
 {
     private static readonly ContentTypeResolver MimeTypeResolver = new();
 
-    public static string? AppVersion { get; } =
+    private static readonly string? RawVersion =
         typeof(DirectoryListingModel).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
             ?.InformationalVersion?.Split('+')[0] is { } v && v != "1.0.0"
             ? (char.IsDigit(v[0]) ? "v" + v : v)
             : null;
+
+    private static readonly string? BuildDate =
+        typeof(DirectoryListingModel).Assembly
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(a => a.Key == "BuildDate")
+            ?.Value is { Length: >= 10 } d ? d[..10] : null;
+
+    public static string? AppVersion { get; } =
+        RawVersion is not null && BuildDate is not null ? $"({RawVersion}, {BuildDate})"
+        : RawVersion is not null ? $"({RawVersion})"
+        : null;
 
     public static bool IsImageExtension(string? extension) =>
         !string.IsNullOrEmpty(extension) && DirectoryFileActionHandlers.ImageExtensions.Contains(extension);

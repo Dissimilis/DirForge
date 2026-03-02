@@ -429,7 +429,7 @@ public sealed class DashboardMetricsService
     {
         [DashboardRouteHelper.DashboardPath] = "dashboard",
         [DashboardRouteHelper.MetricsPath] = "metrics",
-        [DashboardRouteHelper.ApiStatsPath] = "api-stats",
+        [DashboardRouteHelper.DashboardStatsPath] = "dashboard-stats",
         [OperationalRouteHelper.HealthPath] = "healthz",
         [OperationalRouteHelper.HealthzPath] = "healthz",
         [OperationalRouteHelper.ReadyzPath] = "readyz",

@@ -10,6 +10,7 @@ public sealed class ApiStatsResponse
     public double RequestsPerMinute { get; init; }
     public double AverageLatencyMs { get; init; }
     public long TotalDownloadTrafficBytes { get; init; }
+    public long TotalDownloadCount { get; init; }
     public long FileCount { get; init; }
     public long ZipCount { get; init; }
 }
