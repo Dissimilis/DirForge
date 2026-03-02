@@ -2,6 +2,7 @@ namespace DirForge.Models;
 
 public sealed class ApiStatsResponse
 {
+    public string? Version { get; init; }
     public DateTimeOffset GeneratedAtUtc { get; init; }
     public bool Ready { get; init; }
     public long UptimeSeconds { get; init; }
@@ -11,6 +12,4 @@ public sealed class ApiStatsResponse
     public double AverageLatencyMs { get; init; }
     public long TotalDownloadTrafficBytes { get; init; }
     public long TotalDownloadCount { get; init; }
-    public long FileCount { get; init; }
-    public long ZipCount { get; init; }
 }

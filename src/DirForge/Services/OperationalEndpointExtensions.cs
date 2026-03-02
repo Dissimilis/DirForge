@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DirForge.Models;
 using DirForge.Security;
 using Microsoft.AspNetCore.Builder;
@@ -10,6 +11,7 @@ namespace DirForge.Services;
 public static class OperationalEndpointExtensions
 {
     private const string MetricsContentType = "text/plain; version=0.0.4; charset=utf-8";
+    private static readonly JsonSerializerOptions IndentedJsonOptions = new() { WriteIndented = true };
 
     public static IEndpointRouteBuilder MapOperationalEndpoints(this IEndpointRouteBuilder app, DirForgeOptions options)
     {
@@ -126,7 +128,7 @@ public static class OperationalEndpointExtensions
                 }
 
                 var response = CreateApiStatsResponse(options, dashboardMetrics.CreateSnapshot());
-                await context.Response.WriteAsJsonAsync(response);
+                await context.Response.WriteAsJsonAsync(response, IndentedJsonOptions);
             })
             .WithName("DashboardStats");
 
@@ -140,6 +142,7 @@ public static class OperationalEndpointExtensions
     {
         return new ApiStatsResponse
         {
+            Version = AppVersionInfo.AppVersion,
             GeneratedAtUtc = DateTimeOffset.UtcNow,
             Ready = DirectoryReadinessHelper.IsDirectoryReadable(options.RootPath),
             UptimeSeconds = (long)snapshot.Uptime.TotalSeconds,
@@ -148,9 +151,7 @@ public static class OperationalEndpointExtensions
             RequestsPerMinute = snapshot.RequestsPerMinute,
             AverageLatencyMs = snapshot.AverageLatencyMs,
             TotalDownloadTrafficBytes = snapshot.FileDownloadBytes + snapshot.ZipDownloadBytes,
-            TotalDownloadCount = snapshot.FileDownloadCount + snapshot.ZipDownloadCount,
-            FileCount = snapshot.FileDownloadCount,
-            ZipCount = snapshot.ZipDownloadCount
+            TotalDownloadCount = snapshot.FileDownloadCount + snapshot.ZipDownloadCount
         };
     }
 

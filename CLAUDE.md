@@ -1,97 +1,160 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Project
 
-## Project Summary
+DirForge is a stateless, read-only directory listing web app for homelab/NAS use.
 
-DirForge is a stateless, read-only directory listing web app for homelab and NAS users. It serves files from a configured root path using ASP.NET Core Razor Pages on .NET 10.0. No database, no background workers, no disk writes to mounted storage. All configuration comes from environment variables or `appsettings.json`, and everything resets on restart.
+- Stack: ASP.NET Core Razor Pages, .NET 10 (`net10.0`)
+- Data model: no database, no persistent application state
+- Dependency model: runtime app uses framework built-ins only
+- Mission: safely expose files from a configured root with strong defaults
 
-## Build & Run
+## Philosophy
+
+DirForge is intentionally small and opinionated. It is not trying to be a full file platform.
+
+### 1) Security Before Features
+
+Path traversal prevention, root-constrained resolution, symlink containment, and strict auth handling are mandatory. A feature that weakens these boundaries is not acceptable.
+
+### 2) Read-Only Means Read-Only
+
+DirForge is a file access and distribution surface, not a file mutation surface. Public endpoints should not write, rename, move, or delete user files.
+
+### 3) Stateless and Disposable Runtime
+
+In-memory metrics, logs, and one-time-share session state are intentional. Restarting the process should be safe and expected operational behavior.
+
+### 4) Simplicity Over Cleverness
+
+Prefer direct, readable code over abstractions and micro-optimizations unless there is a measured production problem.
+
+### 5) Observability Is Product Behavior
+
+Operational endpoints, dashboard, and `/metrics` are part of the contract. User-visible behavior changes should be reflected in telemetry in the same change.
+
+## Non-Negotiable Invariants
+
+1. All request paths must remain constrained to `RootPath`.
+2. Symlink traversal cannot escape root scope.
+3. Hide/deny policy must stay consistent across UI, API, WebDAV, S3, and MCP where relevant.
+4. Auth checks must remain strict and timing-safe where applicable.
+5. Endpoint surfaces remain read-only unless the project direction explicitly changes.
+
+## Architecture Map
+
+### Startup and Composition
+
+- `src/DirForge/Program.cs`
+  - Configuration load/normalization/validation
+  - Service graph, middleware order, endpoint mapping
+
+- `src/DirForge/Models/DirForgeOptions.cs`
+- `src/DirForge/Services/DirForgeOptionsResolver.cs`
+- `src/DirForge/Services/DirForgeOptionsValidator.cs`
+
+### Core File and Policy Layer
+
+- `src/DirForge/Services/DirectoryListingService.cs`
+  - Path normalization, canonical containment, policy filtering, sorting/search
+
+- `src/DirForge/Pages/DirectoryRequestGuards.cs`
+  - Request-time guardrails around path and share-scope checks
+
+### UI and Handler Layer
+
+- `src/DirForge/Pages/DirectoryListing.cshtml(.cs)`
+- `src/DirForge/Pages/DirectoryActionHandlers.cs`
+- `src/DirForge/Pages/DirectoryFileActionHandlers.cs`
+- `src/DirForge/Pages/ArchiveBrowse.cshtml(.cs)`
+
+### Security and Access Control
+
+- `src/DirForge/Middleware/BasicAuthMiddleware.cs`
+- `src/DirForge/Security/*`
+- `src/DirForge/Services/ShareLinkService.cs`
+- `src/DirForge/Services/OneTimeShareStore.cs`
+
+### Protocol/API Surfaces
+
+- `src/DirForge/Services/JsonApiEndpoints.cs` (`/api`)
+- `src/DirForge/Services/WebDavEndpoints.cs` (`/webdav`)
+- `src/DirForge/Services/S3Endpoints.cs` (`/s3`)
+- `src/DirForge/Services/Mcp/*` (`/mcp`)
+
+### Operational and Metrics Surfaces
+
+- `src/DirForge/Services/OperationalEndpointExtensions.cs`
+  - `/health`, `/healthz`, `/readyz`, `/dashboard/stats`, `/metrics`
+
+- `src/DirForge/Services/DashboardMetricsService.cs`
+- `src/DirForge/Pages/Dashboard.cshtml(.cs)`
+
+## Build and Run
+
+From repo root:
 
 ```bash
-dotnet restore src/DirForge/DirForge.csproj
-dotnet build src/DirForge/DirForge.csproj -c Release --no-restore
+dotnet restore src/DirForge.sln
+dotnet build src/DirForge.sln -c Release
+dotnet run --project src/DirForge/DirForge.csproj
+```
+
+Run full tests:
+
+```bash
+dotnet test src/DirForge.IntegrationRunner/DirForge.IntegrationRunner.csproj -c Release
+```
+
+Run smoke tests only:
+
+```bash
+dotnet test src/DirForge.IntegrationRunner/DirForge.IntegrationRunner.csproj -c Release --filter "TestCategory=Smoke"
+```
+
+Container workflow:
+
+```bash
 docker build -t dirforge:dev .
 HOST_PATH=/srv/share docker compose up -d
 ```
 
-Unit tests: `dotnet test src/DirForge.IntegrationRunner --filter TestCategory=Unit`
+## Contributor Expectations
 
-## Architecture
+- Keep changes small and focused.
+- Preserve root-constrained and read-only behavior.
+- Keep escaping/validation and secure defaults in place.
+- Avoid broad refactors without a concrete, measured need.
+- Prefer explicit code over premature abstractions.
 
-**Single-project solution** at `src/DirForge/`. No external NuGet dependencies — only ASP.NET Core built-ins.
+When changing routes, handlers, auth, config, logging, or limits, update observability in the same change when relevant:
 
-### Request Pipeline (order matters)
+- Dashboard behavior and data shape
+- `/metrics` counters/gauges
+- Endpoint classification in metrics service
 
-1. Store original RemoteIpAddress
-2. ForwardedHeaders middleware
-3. `X-Content-Type-Options: nosniff` header injection
-4. DashboardMetricsService request timing hooks
-5. ASP.NET Core rate limiting (per-IP + global fixed-window)
-6. **BasicAuthMiddleware** — bearer token auth, basic auth, share tokens, auth-failure rate limiting
-7. Static assets (`/dirforge-assets/{**path}`, `/favicon.ico`) — 1-year cache headers
-8. WebDAV (`/webdav/{**path}`) — read-only DAV Class 1
-9. S3 (`/s3/{**path}`) — read-only S3 API with SigV4 auth
-10. JSON API (`/api/{**path}`) — RESTful JSON API with HATEOAS links
-11. MCP (`/mcp`) — JSON-RPC 2.0 Streamable HTTP transport
-12. Razor Pages (`/{**requestPath}`)
-13. Operational endpoints (`/health`, `/healthz`, `/readyz`, `/metrics`, `/api/stats`)
+## Review Lens
 
-### Razor Pages
+Every PR should answer:
 
-- **DirectoryListing** (`/{**requestPath}`) — composes `DirectoryActionHandlers` (GET/search/sort), `DirectoryFileActionHandlers` (downloads/preview/hash/share), `DirectoryRequestGuards` (path resolution/traversal/scope)
-- **ArchiveBrowse** (`/archive/{**requestPath}`) — inline ZIP/TAR/GZ viewer
-- **Dashboard** (`/dashboard`) — in-memory metrics, traffic timeseries, logs
+1. What invariant is being touched?
+2. How is path/security policy preserved?
+3. Is behavior consistent across all relevant protocol surfaces?
+4. What telemetry changed, and why?
+5. Which tests prove this behavior and guard regressions?
 
-### Services
+## Testing Strategy
 
-| Service | Responsibility |
-|---------|---------------|
-| `DirectoryListingService` | File ops, path safety, search, directory sizing, hash generation, listing cache (configurable TTL, default 2s) |
-| `ShareLinkService` | HMAC-SHA256 signed share tokens (create, validate, one-time nonces) |
-| `ArchiveBrowseService` | ZIP/TAR/GZ parsing, virtual path traversal protection within archives |
-| `DashboardMetricsService` | Thread-safe in-memory metrics (requests, status codes, downloads, timeseries) |
-| `IconResolver` | Extension → SVG icon mapping (200+ extensions, auto-discovered at startup) |
-| `ContentTypeResolver` | MIME type detection by extension |
-| `WebDavEndpoints` | Read-only DAV Class 1 at `/webdav/`: OPTIONS, PROPFIND, GET, HEAD |
-| `S3Endpoints` | Read-only S3 API at `/s3/`: ListBuckets, ListObjectsV2, GetObject, HeadObject |
-| `S3SigV4Auth` | Stateless SigV4 validation (canonical request, signing key derivation, constant-time compare) |
-| `JsonApiEndpoints` | REST API at `/api/`: browse, metadata, download, hashes, search, share, archive |
-| `McpEndpoints` | MCP at `/mcp`: list_directory, get_file_info, read_file, search |
-| `InMemoryLogStore` | Circular 500-entry structured log buffer |
+- Unit coverage for policy logic, auth parsing, path handling, and endpoint edge cases.
+- Integration scenarios for end-to-end correctness (browse/download/auth/operational bypass).
+- Add regression tests for every security-relevant bug fix.
 
-### Static Assets
+Primary test project:
 
-Served from `wwwroot` at `/dirforge-assets/*` with 1-year cache headers. Frontend uses vanilla ES5 IIFEs (no build step): `dirforge.js` (main bundle), `qrcode-generator.js` (third-party), `style.css`, `dashboard.css`.
+- `src/DirForge.IntegrationRunner/`
 
-### Security Model
+## Out of Scope by Default
 
-- Path handling is root-constrained with symlink containment validation
-- Constant-time credential comparison (`CryptographicOperations.FixedTimeEquals`) for all auth methods
-- Auth-failure rate limiting (5 attempts / 15 min per IP) across Basic Auth and bearer token failures
-- Bearer token auth: configurable header name, supports `Bearer <token>` prefix and raw token; checked before Basic Auth; both can coexist
-- Share tokens: `Base64Url(JSON payload).Base64Url(HMAC-SHA256 signature)`
-- Hidden paths and denied extensions enforced for direct downloads and ZIP output
-- BasicAuth and bearer token auth bypassed when `ExternalAuthEnabled=true`
-- S3 uses SigV4 auth (secret never transmitted, ±15 min clock skew tolerance, constant-time compare)
-
-## Key Environment Variables
-
-`RootPath`, `Port`, `ListenIp`, `BasicAuthUser`/`BasicAuthPass`, `BearerToken`/`BearerTokenHeaderName`, `EnableSearch`, `AllowFileDownload`, `AllowFolderDownload`, `OpenArchivesInline`, `EnableSharing`/`ShareSecret`, `HideDotfiles`, `HidePathPatterns`, `DenyDownloadExtensions`, `MaxZipSize`, `DefaultTheme`, `SiteTitle`, `ExternalAuthEnabled`, `EnableWebDav`, `EnableS3Endpoint`/`S3BucketName`/`S3Region`/`S3AccessKeyId`/`S3SecretAccessKey`, `EnableJsonApi`, `EnableMcpEndpoint`/`McpReadFileSizeLimit`, `DashboardEnabled`, `EnableDefaultRateLimiter`, `OperationTimeBudgetMs`, `ListingCacheTtlSeconds`.
-
-Flat keys, PascalCase. Validation at startup via `DirForgeOptionsValidator`; normalization via `PostConfigure` in `Program.cs`.
-
-## Project Philosophy & Contributor Guidance
-
-DirForge is a **simple homelab tool** for 1–5 concurrent users, not an enterprise platform:
-
-- **Stateless and disposable.** No database, no persistent state, no disk writes to mounted storage.
-- **Simplicity over performance.** Clear code beats clever optimizations at this scale. Disk I/O and network latency dominate — microsecond-level code overhead is irrelevant.
-- **Zero external dependencies.** Only ASP.NET Core built-ins. No NuGet packages.
-- **Security is non-negotiable.** Path traversal prevention, symlink containment, and auth checks run on every request. Never weaken them for performance.
-- Keep changes small and targeted. Preserve stateless, read-only behavior — no writes to mounted data paths.
-- Keep path handling root-constrained and traversal-safe. Keep HTML output escaped. Prefer secure defaults.
-- Do not add caches, workers, or abstractions without a measured, user-visible problem to solve.
-- Update docs when behavior or configuration changes.
-- Commit messages: short imperative form (e.g., "Add share link expiry validation").
-- **No alignment whitespace in C# code.** Do not use extra spaces to align `=` signs, comments, or values across lines. The CI enforces `dotnet format` and will reject alignment padding (e.g., `private const long  SampleChunkSize  =` is wrong, `private const long SampleChunkSize =` is correct).
+- File writes/mutations through public endpoints
+- Heavy architectural rewrites without concrete user impact
+- New dependencies or subsystems that do not materially improve safety/correctness

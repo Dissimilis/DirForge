@@ -335,6 +335,22 @@ tr:last-child td {
     }
 }
 
+.dashboard-footer {
+    text-align: center;
+    padding: 0.6rem 0 0.2rem;
+}
+
+.stats-api-link {
+    color: var(--ink-dim);
+    font-size: 0.72rem;
+    text-decoration: none;
+    letter-spacing: 0.03em;
+}
+
+.stats-api-link:hover {
+    color: var(--accent);
+}
+
 @media (max-width: 680px) {
     .shell {
         width: calc(100% - 1rem);
