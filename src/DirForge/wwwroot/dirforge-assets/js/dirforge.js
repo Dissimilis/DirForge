@@ -835,6 +835,26 @@
                         }
                     }
                     recomputeListingSummary();
+
+                    // Re-sort table rows if currently sorted by size
+                    var params = new URLSearchParams(window.location.search);
+                    if (params.has('size')) {
+                        var ascending = params.get('dir') === 'asc';
+                        var tbody = document.querySelector('table.listing-table tbody');
+                        if (tbody) {
+                            var entryRows = Array.from(tbody.querySelectorAll('tr[data-entry-row]'));
+                            var otherRows = Array.from(tbody.querySelectorAll('tr:not([data-entry-row])'));
+                            entryRows.sort(function(a, b) {
+                                var aBytes = parseFloat(a.getAttribute('data-size-bytes')) || 0;
+                                var bBytes = parseFloat(b.getAttribute('data-size-bytes')) || 0;
+                                return ascending ? aBytes - bBytes : bBytes - aBytes;
+                            });
+                            otherRows.forEach(function(r) { tbody.appendChild(r); });
+                            entryRows.forEach(function(r) { tbody.appendChild(r); });
+                            otherRows.forEach(function(r) { tbody.insertBefore(r, tbody.firstChild); });
+                        }
+                    }
+
                     calcBtn.disabled = false;
                     calcBtn.title = 'Recalculate subdirectory sizes';
                 })

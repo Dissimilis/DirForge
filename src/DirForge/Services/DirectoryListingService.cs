@@ -335,6 +335,11 @@ public sealed class DirectoryListingService
                 continue;
             }
 
+            if (entry.HumanSize != "-")
+            {
+                continue;
+            }
+
             if (timer is not null && timer.ElapsedMilliseconds >= budgetMs)
             {
                 break;
@@ -364,6 +369,10 @@ public sealed class DirectoryListingService
         }
 
         var entries = ReadEntries(physicalPath);
+        if (_options.CalculateDirectorySizes)
+        {
+            EnrichWithDirectorySizes(entries, physicalPath);
+        }
         SortEntries(entries, sortMode, sortDirection);
         _memoryCache.Set(cacheKey, entries, _listingCacheEntryOptions);
         return entries;
