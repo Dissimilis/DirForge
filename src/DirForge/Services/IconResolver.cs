@@ -76,7 +76,7 @@ public sealed class IconResolver
     public string ResolveIconPath(string fileName, string type)
     {
         var extension = GetExtension(fileName);
-        if (!string.IsNullOrEmpty(extension) && _availableIcons.Contains(extension + ".svg"))
+        if (type != "folder" && !string.IsNullOrEmpty(extension) && _availableIcons.Contains(extension + ".svg"))
         {
             return StaticAssetRouteHelper.AssetPath("file-icon-vectors/" + extension + ".svg");
         }
