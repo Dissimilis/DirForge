@@ -34,7 +34,7 @@ jobs:
         run: docker build --build-arg VERSION=${{ steps.vars.outputs.tag }} --build-arg COMMIT_SHA=${{ github.sha }} --build-arg BUILD_DATE=${{ github.event.release.created_at }} --tag dirforge:test .
 
       - name: Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@0.34.1
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: dirforge:test
           format: table
