@@ -68,17 +68,6 @@ jobs:
             echo "recreated=false"
           fi
 
-          for i in $(seq 1 30); do
-            if curl -fsS http://localhost:8089/ >/dev/null 2>&1; then
-              break
-            fi
-            if [ "$i" -eq 30 ]; then
-              echo "dirforge did not become ready in time"
-              docker logs --tail 200 dirforge || true
-              exit 1
-            fi
-            sleep 1
-          done
-
+          curl -fsS http://localhost:8089/health >/dev/null
           docker ps --filter name='^/dirforge$' --format '{{.Names}}|{{.Image}}|{{.Status}}'
           EOF
