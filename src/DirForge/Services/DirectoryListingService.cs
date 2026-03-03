@@ -10,6 +10,7 @@ public sealed class DirectoryListingService
     internal const int SearchResultLimit = 200;
 
     private readonly MemoryCacheEntryOptions _listingCacheEntryOptions;
+    private readonly MemoryCacheEntryOptions _sizeCacheEntryOptions;
 
     private static readonly EnumerationOptions NonRecursiveOptions = new()
     {
@@ -53,6 +54,10 @@ public sealed class DirectoryListingService
         {
             AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(_options.ListingCacheTtlSeconds),
             SlidingExpiration = TimeSpan.FromSeconds(_options.ListingCacheTtlSeconds)
+        };
+        _sizeCacheEntryOptions = new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(_options.DirectorySizeCacheTtlSeconds)
         };
     }
 
@@ -287,7 +292,7 @@ public sealed class DirectoryListingService
         return entries;
     }
 
-    public Dictionary<string, object> ComputeDirectorySizes(string physicalPath)
+    public Dictionary<string, object> ComputeDirectorySizes(string physicalPath, string relativePath)
     {
         var result = new Dictionary<string, object>();
         var dirInfo = new DirectoryInfo(physicalPath);
@@ -316,11 +321,24 @@ public sealed class DirectoryListingService
                 continue;
             }
 
-            var size = CalculateDirectorySize(subDir, timer, budgetMs);
+            var size = GetOrCalculateDirectorySize(subDir, timer, budgetMs);
             result[subDir.Name] = new { size, humanSize = HumanizeSize(size), tooltip = $"{size:N0} bytes" };
         }
 
+        InvalidateListingCache(physicalPath, relativePath);
         return result;
+    }
+
+    public void InvalidateListingCache(string physicalPath, string relativePath)
+    {
+        var mtime = Directory.GetLastWriteTimeUtc(physicalPath).Ticks;
+        for (var sort = 0; sort <= 3; sort++)
+        {
+            for (var dir = 0; dir <= 1; dir++)
+            {
+                _memoryCache.Remove($"listing:{relativePath}:{sort}:{dir}:{mtime}");
+            }
+        }
     }
 
     public void EnrichWithDirectorySizes(List<DirectoryEntry> entries, string physicalPath)
@@ -346,10 +364,30 @@ public sealed class DirectoryListingService
             }
 
             var dirPath = Path.Combine(physicalPath, entry.RelativePath);
-            var size = CalculateDirectorySize(new DirectoryInfo(dirPath), timer, budgetMs);
+            var size = GetOrCalculateDirectorySize(new DirectoryInfo(dirPath), timer, budgetMs);
             entry.Size = size;
             entry.HumanSize = HumanizeSize(size);
             entry.SizeTooltip = $"{size:N0} bytes";
+        }
+    }
+
+    public void EnrichWithCachedDirectorySizes(List<DirectoryEntry> entries, string physicalPath)
+    {
+        if (_options.DirectorySizeCacheTtlSeconds <= 0) return;
+
+        foreach (var entry in entries)
+        {
+            if (!entry.IsDirectory || entry.HumanSize != "-") continue;
+
+            var dirPath = Path.Combine(physicalPath, entry.RelativePath);
+            var dirInfo = new DirectoryInfo(dirPath);
+            var cacheKey = $"dirsize:{dirInfo.FullName}:{dirInfo.LastWriteTimeUtc.Ticks}";
+            if (_memoryCache.TryGetValue<long>(cacheKey, out var size))
+            {
+                entry.Size = size;
+                entry.HumanSize = HumanizeSize(size);
+                entry.SizeTooltip = $"{size:N0} bytes";
+            }
         }
     }
 
@@ -372,6 +410,10 @@ public sealed class DirectoryListingService
         if (_options.CalculateDirectorySizes)
         {
             EnrichWithDirectorySizes(entries, physicalPath);
+        }
+        else
+        {
+            EnrichWithCachedDirectorySizes(entries, physicalPath);
         }
         SortEntries(entries, sortMode, sortDirection);
         _memoryCache.Set(cacheKey, entries, _listingCacheEntryOptions);
@@ -606,6 +648,20 @@ public sealed class DirectoryListingService
         }
 
         return normalized;
+    }
+
+    private long GetOrCalculateDirectorySize(DirectoryInfo directory, Stopwatch? timeBudget = null, int timeBudgetMs = 0)
+    {
+        if (_options.DirectorySizeCacheTtlSeconds <= 0)
+            return CalculateDirectorySize(directory, timeBudget, timeBudgetMs);
+
+        var cacheKey = $"dirsize:{directory.FullName}:{directory.LastWriteTimeUtc.Ticks}";
+        if (_memoryCache.TryGetValue<long>(cacheKey, out var cached))
+            return cached;
+
+        var size = CalculateDirectorySize(directory, timeBudget, timeBudgetMs);
+        _memoryCache.Set(cacheKey, size, _sizeCacheEntryOptions);
+        return size;
     }
 
     private long CalculateDirectorySize(DirectoryInfo directory, Stopwatch? timeBudget = null, int timeBudgetMs = 0)

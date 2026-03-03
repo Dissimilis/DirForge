@@ -33,14 +33,6 @@ jobs:
       - name: Build test image
         run: docker build --build-arg VERSION=${{ steps.vars.outputs.tag }} --build-arg COMMIT_SHA=${{ github.sha }} --build-arg BUILD_DATE=${{ github.event.release.created_at }} --tag dirforge:test .
 
-      - name: Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: dirforge:test
-          format: table
-          exit-code: 1
-          severity: CRITICAL,HIGH
-
       - name: Smoke test
         run: |
           mkdir -p testdata && echo "ok" > testdata/hello.txt

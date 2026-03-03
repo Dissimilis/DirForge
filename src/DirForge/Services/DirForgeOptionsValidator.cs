@@ -122,6 +122,11 @@ public sealed class DirForgeOptionsValidator : IValidateOptions<DirForgeOptions>
             failures.Add("ListingCacheTtlSeconds must be between 1 and 2592000 (30 days).");
         }
 
+        if (options.DirectorySizeCacheTtlSeconds is < 0 or > 2_592_000)
+        {
+            failures.Add("DirectorySizeCacheTtlSeconds must be between 0 and 2592000 (30 days). 0 disables caching.");
+        }
+
         if (options.BearerTokenEnabled && string.IsNullOrWhiteSpace(options.BearerTokenHeaderName))
         {
             failures.Add("BearerTokenHeaderName cannot be empty when BearerToken is set.");

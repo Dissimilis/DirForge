@@ -49,6 +49,7 @@ public sealed class DirForgeOptions
     public string? BearerToken { get; set; }
     public string BearerTokenHeaderName { get; set; } = null!;
     public int ListingCacheTtlSeconds { get; set; }
+    public int DirectorySizeCacheTtlSeconds { get; set; } = 300;
     public bool BearerTokenEnabled => !string.IsNullOrWhiteSpace(BearerToken);
     public bool AuthEnabled => !string.IsNullOrWhiteSpace(BasicAuthUser) && !string.IsNullOrWhiteSpace(BasicAuthPass);
     public bool DashboardAuthEnabled => !string.IsNullOrWhiteSpace(DashboardAuthUser) && !string.IsNullOrWhiteSpace(DashboardAuthPass);

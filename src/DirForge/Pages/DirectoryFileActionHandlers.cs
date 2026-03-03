@@ -103,7 +103,7 @@ public sealed class DirectoryFileActionHandlers
             return new JsonResult(new { }) { StatusCode = StatusCodes.Status404NotFound };
         }
 
-        var sizes = _directoryListingService.ComputeDirectorySizes(physicalPath);
+        var sizes = _directoryListingService.ComputeDirectorySizes(physicalPath, relativePath);
         return new JsonResult(sizes);
     }
 

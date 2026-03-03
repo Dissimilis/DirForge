@@ -139,11 +139,6 @@ public sealed class DirectoryActionHandlers
             return DirectoryListingPageResult.FromResult(notModifiedResult);
         }
 
-        if (_options.CalculateDirectorySizes && !searchActive)
-        {
-            _directoryListingService.EnrichWithDirectorySizes(entries, physicalPath);
-        }
-
         var state = BuildPageState(
             request,
             entries,
