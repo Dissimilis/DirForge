@@ -1,0 +1,73 @@
+name: Deploy Zenforge DirForge
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >-
+      ${{
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main'
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Install SSH client tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+
+      - name: Redeploy dirforge on Zenforge
+        env:
+          ZENFORGE_SSH_HOST: ${{ vars.ZENFORGE_SSH_HOST }}
+          ZENFORGE_SSH_USERNAME: ${{ secrets.ZENFORGE_SSH_USERNAME }}
+          ZENFORGE_SSH_PASSWORD: ${{ secrets.ZENFORGE_SSH_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${ZENFORGE_SSH_HOST}" ] || [ -z "${ZENFORGE_SSH_USERNAME}" ] || [ -z "${ZENFORGE_SSH_PASSWORD}" ]; then
+            echo "Missing Zenforge deploy secrets/variables."
+            exit 1
+          fi
+
+          sshpass -p "${ZENFORGE_SSH_PASSWORD}" ssh \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "${ZENFORGE_SSH_USERNAME}@${ZENFORGE_SSH_HOST}" << 'EOF'
+          set -euo pipefail
+
+          old_container_image_id="$(docker inspect --format '{{.Image}}' dirforge)"
+          docker pull ghcr.io/dissimilis/dirforge:dev >/tmp/dirforge-pull.log 2>&1 || {
+            cat /tmp/dirforge-pull.log
+            exit 1
+          }
+          new_image_id="$(docker image inspect ghcr.io/dissimilis/dirforge:dev --format '{{.Id}}')"
+
+          if [ "${old_container_image_id}" != "${new_image_id}" ]; then
+            docker rm -f dirforge >/dev/null
+            docker run -d \
+              --name dirforge \
+              --restart unless-stopped \
+              -p 8089:8080 \
+              -e ForwardedHeadersEnabled=true \
+              --label com.zrf.deployment=dirforge \
+              --label com.centurylinklabs.watchtower.enable=true \
+              ghcr.io/dissimilis/dirforge:dev >/dev/null
+            echo "recreated=true"
+          else
+            echo "recreated=false"
+          fi
+
+          curl -fsS http://localhost:8089/health >/dev/null
+          docker ps --filter name='^/dirforge$' --format '{{.Names}}|{{.Image}}|{{.Status}}'
+          EOF
