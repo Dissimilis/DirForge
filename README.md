@@ -40,9 +40,11 @@ docker run -d \
 ### Docker Compose
 ```bash
 cp .env.example .env
-# edit HOST_PATH in .env
+# edit HOST_PATH, BasicAuthUser, and BasicAuthPass in .env
 docker compose up -d
 ```
+
+> **Warning:** The default compose file falls back to `admin`/`dirforge` credentials if you don't set `BasicAuthUser` and `BasicAuthPass` in your `.env`. Change these before exposing the service on your network.
 
 ### Podman
 
@@ -147,6 +149,8 @@ Defaults are defined in `src/DirForge/appsettings.json`. Override any value with
 | `EnableS3Endpoint` | `false` | Read-only S3 API at `/s3/`. |
 | `EnableJsonApi` | `true` | RESTful JSON API at `/api/`. |
 | `EnableMcpEndpoint` | `true` | MCP server at `/mcp/`. |
+| `CalculateDirectorySizes` | `false` | Auto-calculate subdirectory sizes on page load (slow on large trees). |
+| `DirectorySizeCacheTtlSeconds` | `300` | Cache TTL for computed directory sizes in seconds (0–2592000; 0 disables). |
 | `ListingCacheTtlSeconds` | `2` | Directory listing cache TTL in seconds (1–2592000). |
 
 ## Security

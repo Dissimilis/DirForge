@@ -35,6 +35,10 @@ RUN case "$TARGETARCH" in \
 FROM mcr.microsoft.com/dotnet/runtime-deps:10.0-alpine AS runtime
 WORKDIR /app
 
+ARG VERSION=""
+ARG COMMIT_SHA=""
+ARG BUILD_DATE=""
+
 LABEL org.opencontainers.image.title="DirForge" \
       org.opencontainers.image.description="Simple directory listing application for containerized deployments." \
       org.opencontainers.image.url="https://github.com/Dissimilis/DirForge" \
@@ -46,10 +50,10 @@ LABEL org.opencontainers.image.title="DirForge" \
       org.opencontainers.image.revision="${COMMIT_SHA}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       net.unraid.docker.webui="http://[IP]:[PORT:8080]/" \
-      net.unraid.docker.icon="https://raw.githubusercontent.com/Dissimilis/DirForge/main/logo.png" \
+      net.unraid.docker.icon="https://raw.githubusercontent.com/Dissimilis/DirForge/main/img/logo.png" \
       homepage.group="Files" \
       homepage.name="DirForge" \
-      homepage.icon="https://raw.githubusercontent.com/Dissimilis/DirForge/main/logo.png" \
+      homepage.icon="https://raw.githubusercontent.com/Dissimilis/DirForge/main/img/logo.png" \
       homepage.description="Directory listing app" \
       com.centurylinklabs.watchtower.enable="true" \
       dev.dozzle.name="DirForge" \

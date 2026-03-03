@@ -38,5 +38,8 @@ src/DirForge/appsettings.Local.json
 *.log
 tmp/
 
+# Internal planning notes
+todo/
+
 # Documentation managed outside repo
 AGENTS.md
