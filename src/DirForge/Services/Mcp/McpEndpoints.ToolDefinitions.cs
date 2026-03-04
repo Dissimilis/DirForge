@@ -289,6 +289,45 @@ public static partial class McpEndpoints
 
         tools.Add(new
         {
+            name = "search_by_size",
+            description = "Find files within a size range. Supports min, max, or both. At least one of minSize or maxSize is required. Results sorted by size descending.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["path"] = new { type = "string", description = "Relative path within the file server root. Empty string for root." },
+                    ["minSize"] = new { type = "integer", description = "Minimum file size in bytes (inclusive)." },
+                    ["maxSize"] = new { type = "integer", description = "Maximum file size in bytes (inclusive)." },
+                    ["maxResults"] = new { type = "integer", description = "Maximum results to return (default: 20, max: 100)." },
+                    ["maxDepth"] = new { type = "integer", description = "Maximum depth to traverse (default: 10, max: 10)." },
+                    ["include"] = new { type = "string", description = "Comma-separated glob patterns to include (e.g. '*.log, *.txt'). Only matching files are returned. Supports * and ? wildcards. Empty means all files." },
+                    ["exclude"] = new { type = "string", description = "Comma-separated glob patterns to exclude (e.g. 'node_modules, *.tmp'). Matching files and directories are skipped. Supports * and ? wildcards." }
+                },
+                required = Array.Empty<string>()
+            }
+        });
+
+        tools.Add(new
+        {
+            name = "disk_usage_summary",
+            description = "Summarize total size, file count, and directory count for a path. Shows top subdirectories by size. Optionally filter by glob pattern to summarize only matching files.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["path"] = new { type = "string", description = "Relative path within the file server root. Empty string for root." },
+                    ["maxDepth"] = new { type = "integer", description = "Maximum depth to traverse (default: 10, max: 10)." },
+                    ["include"] = new { type = "string", description = "Comma-separated glob patterns to include (e.g. '*.jpg, *.png'). Only matching files count toward totals. Supports * and ? wildcards. Empty means all files." },
+                    ["exclude"] = new { type = "string", description = "Comma-separated glob patterns to exclude (e.g. 'node_modules, *.tmp'). Matching files and directories are skipped. Supports * and ? wildcards." }
+                },
+                required = Array.Empty<string>()
+            }
+        });
+
+        tools.Add(new
+        {
             name = "diff_snapshots",
             description = "Detect filesystem changes in a directory. On first call (without a previousToken), returns a snapshot token. On subsequent calls, pass the previous token to get a structured diff of added, removed, and modified files. The token is self-contained — no server-side state is stored.",
             inputSchema = new
@@ -406,6 +445,12 @@ public static partial class McpEndpoints
                 break;
             case "search_by_date":
                 await HandleToolSearchByDate(context, id, arguments, options);
+                break;
+            case "search_by_size":
+                await HandleToolSearchBySize(context, id, arguments, options);
+                break;
+            case "disk_usage_summary":
+                await HandleToolDiskUsageSummary(context, id, arguments, options);
                 break;
             case "find_potential_duplicates":
                 await HandleToolFindPotentialDuplicates(context, id, arguments, options);
