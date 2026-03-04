@@ -12,6 +12,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseWindowsService();
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 builder.WebHost.UseKestrelCore();
 builder.WebHost.ConfigureKestrel(o => o.AllowSynchronousIO = true);

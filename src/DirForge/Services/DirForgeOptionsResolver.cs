@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using DirForge.Models;
+using Microsoft.Extensions.Hosting.WindowsServices;
 
 namespace DirForge.Services;
 
@@ -10,7 +11,14 @@ public static class DirForgeOptionsResolver
         var options = configuration.Get<DirForgeOptions>() ??
                       throw new InvalidOperationException("Failed to bind DirForgeOptions.");
 
-        options.RootPath = Path.GetFullPath(string.IsNullOrWhiteSpace(options.RootPath) ? "." : options.RootPath);
+        var rawRootPath = options.RootPath;
+        if (!string.IsNullOrWhiteSpace(rawRootPath))
+        {
+            if (!Path.IsPathRooted(rawRootPath) && WindowsServiceHelpers.IsWindowsService())
+                options.RootPath = Path.GetFullPath(rawRootPath, AppContext.BaseDirectory);
+            else
+                options.RootPath = Path.GetFullPath(rawRootPath);
+        }
         options.ListenIp = string.IsNullOrWhiteSpace(options.ListenIp) ? "0.0.0.0" : options.ListenIp.Trim();
         options.DefaultTheme = options.DefaultTheme.ToLowerInvariant();
         options.HidePathPatterns = ReadConfiguredStringList(configuration, nameof(DirForgeOptions.HidePathPatterns))

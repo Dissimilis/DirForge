@@ -8,7 +8,7 @@ concurrency:
   group: release
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -88,3 +88,47 @@ jobs:
             BUILD_DATE=${{ github.event.release.created_at }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  windows-binary:
+    runs-on: ubuntu-latest
+    needs: release
+
+    steps:
+      - name: Extract version
+        id: vars
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          TAG="${TAG#v}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish win-x64 self-contained
+        run: |
+          dotnet publish src/DirForge/DirForge.csproj \
+            -c Release \
+            -r win-x64 \
+            --self-contained \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:Version=${{ steps.vars.outputs.tag }} \
+            -p:BuildDate=${{ github.event.release.created_at }} \
+            -o publish
+
+      - name: Package release zip
+        run: |
+          cp install-service.bat publish/
+          cp uninstall-service.bat publish/
+          cd publish
+          zip -r ../dirforge-win-x64.zip .
+
+      - name: Upload release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dirforge-win-x64.zip --clobber

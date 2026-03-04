@@ -5,7 +5,7 @@
       "launchBrowser": true,
       "launchUrl": "http://localhost:8091",
       "environmentVariables": {
-        "RootPath": ".",
+        "RootPath": "../../samples",
         "Port": "8091"
       }
     }

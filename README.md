@@ -72,6 +72,14 @@ podman compose up -d
 > - DirForge uses ports above 1024, so rootless Podman works without extra configuration.
 > - On SELinux systems (Fedora, RHEL), add `:z` to volume mounts: `-v /srv/share:/data:ro,z`.
 
+### Standalone (Windows)
+
+1. Download `dirforge-win-x64.zip` from the [latest release](https://github.com/Dissimilis/DirForge/releases/latest)
+2. Extract to a folder (e.g. `C:\DirForge`)
+3. Edit `appsettings.json` — set `RootPath` to the directory you want to share
+4. **Console mode:** Double-click `DirForge.exe` to run interactively
+5. **Windows Service:** Right-click `install-service.bat` → Run as administrator. DirForge will start on boot automatically. Use `uninstall-service.bat` to remove the service.
+
 Open `http://localhost:8091`.
 With the default config profile in this repository, sharing, dashboard, and metrics are enabled.
 
