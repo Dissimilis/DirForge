@@ -132,3 +132,52 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ github.event.release.tag_name }}" dirforge-win-x64.zip --clobber
+
+  linux-binary:
+    runs-on: ubuntu-latest
+    needs: release
+
+    strategy:
+      matrix:
+        include:
+          - rid: linux-x64
+          - rid: linux-arm64
+
+    steps:
+      - name: Extract version
+        id: vars
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          TAG="${TAG#v}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Publish ${{ matrix.rid }} self-contained
+        run: |
+          dotnet publish src/DirForge/DirForge.csproj \
+            -c Release \
+            -r ${{ matrix.rid }} \
+            --self-contained \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:Version=${{ steps.vars.outputs.tag }} \
+            -p:BuildDate=${{ github.event.release.created_at }} \
+            -o publish
+
+      - name: Package release tarball
+        run: |
+          cp dirforge.service publish/
+          chmod +x publish/DirForge
+          tar -czf dirforge-${{ matrix.rid }}.tar.gz -C publish .
+
+      - name: Upload release asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dirforge-${{ matrix.rid }}.tar.gz --clobber

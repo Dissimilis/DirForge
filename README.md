@@ -80,6 +80,23 @@ podman compose up -d
 4. **Console mode:** Double-click `DirForge.exe` to run interactively
 5. **Windows Service:** Right-click `install-service.bat` → Run as administrator. DirForge will start on boot automatically. Use `uninstall-service.bat` to remove the service.
 
+### Standalone (Linux)
+
+1. Download `dirforge-linux-x64.tar.gz` (or `linux-arm64`) from the [latest release](https://github.com/Dissimilis/DirForge/releases/latest)
+2. Extract: `tar -xzf dirforge-linux-x64.tar.gz -C /opt/dirforge`
+3. Edit `appsettings.json` — set `RootPath` to the directory you want to share
+4. **Run directly:** `./DirForge`
+5. **Install as systemd service:**
+   ```bash
+   sudo useradd -r -s /usr/sbin/nologin dirforge
+   sudo cp dirforge.service /etc/systemd/system/
+   # Edit /etc/systemd/system/dirforge.service to adjust paths if needed
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now dirforge
+   ```
+
+The tarball includes an example `dirforge.service` file with systemd hardening options.
+
 Open `http://localhost:8091`.
 With the default config profile in this repository, sharing, dashboard, and metrics are enabled.
 

@@ -1,0 +1,24 @@
+# Example systemd service file for DirForge.
+# Copy to /etc/systemd/system/dirforge.service and adjust paths/user as needed.
+
+[Unit]
+Description=DirForge - Directory Listing Web App
+After=network.target
+
+[Service]
+Type=notify
+ExecStart=/opt/dirforge/DirForge
+WorkingDirectory=/opt/dirforge
+User=dirforge
+Restart=on-failure
+RestartSec=5
+
+# Hardening
+ProtectSystem=strict
+ProtectHome=true
+NoNewPrivileges=true
+PrivateTmp=true
+ReadWritePaths=/opt/dirforge
+
+[Install]
+WantedBy=multi-user.target
