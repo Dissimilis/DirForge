@@ -651,4 +651,308 @@ public static partial class McpEndpoints
 
         await WriteToolResult(context, id, sb.ToString());
     }
+
+    private static async Task HandleToolFindLargestDirectories(HttpContext context, JsonElement? id, JsonElement? arguments, DirForgeOptions options)
+    {
+        var listingService = context.RequestServices.GetRequiredService<DirectoryListingService>();
+        var path = arguments?.TryGetProperty("path", out var pathProp) == true ? pathProp.GetString() : "";
+        var relativePath = DirectoryListingService.NormalizeRelativePath(path);
+
+        var maxResults = DefaultFindResults;
+        if (arguments?.TryGetProperty("maxResults", out var maxProp) == true && maxProp.ValueKind == JsonValueKind.Number)
+        {
+            var requested = maxProp.GetInt32();
+            if (requested > 0 && requested <= MaxFindResults)
+                maxResults = requested;
+        }
+
+        var maxDepth = MaxTreeDepth;
+        if (arguments?.TryGetProperty("maxDepth", out var depthProp) == true && depthProp.ValueKind == JsonValueKind.Number)
+        {
+            var requested = depthProp.GetInt32();
+            if (requested >= 1 && requested <= MaxTreeDepth)
+                maxDepth = requested;
+        }
+
+        var exclude = arguments?.TryGetProperty("exclude", out var exclProp) == true ? exclProp.GetString() : null;
+
+        if (options.HideDotfiles && DirectoryListingService.ContainsDotPathSegment(relativePath))
+        {
+            await WriteToolError(context, id, "Path not found");
+            return;
+        }
+
+        var physicalPath = listingService.ResolvePhysicalPath(relativePath);
+        if (physicalPath is null || !Directory.Exists(physicalPath))
+        {
+            await WriteToolError(context, id, "Directory not found");
+            return;
+        }
+
+        if (listingService.IsPathHiddenByPolicy(relativePath, isDirectory: true))
+        {
+            await WriteToolError(context, id, "Path not found");
+            return;
+        }
+
+        var sw = Stopwatch.StartNew();
+        var timeBudgetMs = options.OperationTimeBudgetMs;
+        var truncated = false;
+
+        // Two-pass: first collect all file sizes per directory, then aggregate
+        // dirSizes maps physical directory path -> total recursive file size
+        var dirSizes = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        var dirModified = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        var dirRelPaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        var stack = new Stack<(string PhysicalPath, int Depth)>();
+        stack.Push((physicalPath, 0));
+
+        while (stack.Count > 0)
+        {
+            if (sw.ElapsedMilliseconds > timeBudgetMs)
+            {
+                truncated = true;
+                break;
+            }
+
+            var (currentPath, depth) = stack.Pop();
+            var children = GetFilteredChildren(new DirectoryInfo(currentPath), listingService, options);
+
+            foreach (var child in children)
+            {
+                if (sw.ElapsedMilliseconds > timeBudgetMs)
+                {
+                    truncated = true;
+                    break;
+                }
+
+                if (child.IsDirectory)
+                {
+                    var dirRelPath = listingService.GetRootRelativePath(child.PhysicalPath);
+                    if (MatchesAnyPattern(dirRelPath, child.Name, exclude)) continue;
+
+                    dirSizes[child.PhysicalPath] = 0;
+                    dirModified[child.PhysicalPath] = child.Modified;
+                    dirRelPaths[child.PhysicalPath] = dirRelPath;
+
+                    if (depth < maxDepth)
+                        stack.Push((child.PhysicalPath, depth + 1));
+                }
+                else
+                {
+                    // Add file size to all ancestor directories we're tracking
+                    var fileDir = Path.GetDirectoryName(child.PhysicalPath);
+                    while (fileDir != null && dirSizes.ContainsKey(fileDir))
+                    {
+                        dirSizes[fileDir] += child.Size;
+                        fileDir = Path.GetDirectoryName(fileDir);
+                    }
+                    // Also add to the search root if current file is a direct child
+                    // (the root itself isn't tracked in dirSizes)
+                }
+            }
+        }
+
+        var dirs = dirSizes
+            .Select(kvp => (RelativePath: dirRelPaths[kvp.Key], Size: kvp.Value, Modified: dirModified[kvp.Key]))
+            .OrderByDescending(d => d.Size)
+            .Take(maxResults)
+            .ToList();
+
+        var sb = new StringBuilder();
+        var displayRoot = string.IsNullOrEmpty(relativePath) ? "/" : $"/{relativePath}";
+        sb.AppendLine($"Largest directories in {displayRoot}");
+        sb.AppendLine($"Found: {dirs.Count} of {dirSizes.Count:N0} directories");
+        sb.AppendLine();
+
+        for (var i = 0; i < dirs.Count; i++)
+        {
+            var (dirPath, size, modified) = dirs[i];
+            sb.AppendLine($"  {i + 1,3}.  {DirectoryListingService.HumanizeSize(size),10}  {modified:yyyy-MM-dd HH:mm}  {dirPath}");
+        }
+
+        if (truncated)
+        {
+            sb.AppendLine();
+            sb.AppendLine("(results may be incomplete — time budget exceeded)");
+        }
+
+        await WriteToolResult(context, id, sb.ToString());
+    }
+
+    private static async Task HandleToolSearchByDate(HttpContext context, JsonElement? id, JsonElement? arguments, DirForgeOptions options)
+    {
+        var listingService = context.RequestServices.GetRequiredService<DirectoryListingService>();
+        var path = arguments?.TryGetProperty("path", out var pathProp) == true ? pathProp.GetString() : "";
+        var relativePath = DirectoryListingService.NormalizeRelativePath(path);
+
+        var afterStr = arguments?.TryGetProperty("after", out var afterProp) == true ? afterProp.GetString() : null;
+        var beforeStr = arguments?.TryGetProperty("before", out var beforeProp) == true ? beforeProp.GetString() : null;
+
+        if (string.IsNullOrWhiteSpace(afterStr) && string.IsNullOrWhiteSpace(beforeStr))
+        {
+            await WriteToolError(context, id, "At least one of 'after' or 'before' is required");
+            return;
+        }
+
+        DateTime? after = null;
+        DateTime? before = null;
+
+        if (!string.IsNullOrWhiteSpace(afterStr))
+        {
+            if (!DateTime.TryParse(afterStr, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed))
+            {
+                await WriteToolError(context, id, $"Invalid 'after' date: {afterStr}");
+                return;
+            }
+            after = parsed;
+        }
+
+        if (!string.IsNullOrWhiteSpace(beforeStr))
+        {
+            if (!DateTime.TryParse(beforeStr, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsed))
+            {
+                await WriteToolError(context, id, $"Invalid 'before' date: {beforeStr}");
+                return;
+            }
+            before = parsed;
+        }
+
+        var maxResults = DefaultFindResults;
+        if (arguments?.TryGetProperty("maxResults", out var maxProp) == true && maxProp.ValueKind == JsonValueKind.Number)
+        {
+            var requested = maxProp.GetInt32();
+            if (requested > 0 && requested <= MaxFindResults)
+                maxResults = requested;
+        }
+
+        var maxDepth = MaxTreeDepth;
+        if (arguments?.TryGetProperty("maxDepth", out var depthProp) == true && depthProp.ValueKind == JsonValueKind.Number)
+        {
+            var requested = depthProp.GetInt32();
+            if (requested >= 1 && requested <= MaxTreeDepth)
+                maxDepth = requested;
+        }
+
+        var include = arguments?.TryGetProperty("include", out var inclProp) == true ? inclProp.GetString() : null;
+        var exclude = arguments?.TryGetProperty("exclude", out var exclProp) == true ? exclProp.GetString() : null;
+        var includeDirectories = arguments?.TryGetProperty("includeDirectories", out var inclDirProp) == true
+            && inclDirProp.ValueKind == JsonValueKind.True;
+
+        if (options.HideDotfiles && DirectoryListingService.ContainsDotPathSegment(relativePath))
+        {
+            await WriteToolError(context, id, "Path not found");
+            return;
+        }
+
+        var physicalPath = listingService.ResolvePhysicalPath(relativePath);
+        if (physicalPath is null || !Directory.Exists(physicalPath))
+        {
+            await WriteToolError(context, id, "Directory not found");
+            return;
+        }
+
+        if (listingService.IsPathHiddenByPolicy(relativePath, isDirectory: true))
+        {
+            await WriteToolError(context, id, "Path not found");
+            return;
+        }
+
+        var sw = Stopwatch.StartNew();
+        var timeBudgetMs = options.OperationTimeBudgetMs;
+        var entries = new List<(string RelativePath, long Size, DateTime Modified, bool IsDir)>();
+        var totalScanned = 0;
+        var truncated = false;
+
+        var stack = new Stack<(string PhysicalPath, int Depth)>();
+        stack.Push((physicalPath, 0));
+
+        while (stack.Count > 0)
+        {
+            if (sw.ElapsedMilliseconds > timeBudgetMs)
+            {
+                truncated = true;
+                break;
+            }
+
+            var (currentPath, depth) = stack.Pop();
+            var children = GetFilteredChildren(new DirectoryInfo(currentPath), listingService, options);
+
+            foreach (var child in children)
+            {
+                if (sw.ElapsedMilliseconds > timeBudgetMs)
+                {
+                    truncated = true;
+                    break;
+                }
+
+                if (child.IsDirectory)
+                {
+                    if (depth < maxDepth)
+                    {
+                        var dirRelPath = listingService.GetRootRelativePath(child.PhysicalPath);
+                        if (!MatchesAnyPattern(dirRelPath, child.Name, exclude))
+                            stack.Push((child.PhysicalPath, depth + 1));
+                    }
+
+                    if (includeDirectories)
+                    {
+                        var dirRelPath = listingService.GetRootRelativePath(child.PhysicalPath);
+                        if (MatchesAnyPattern(dirRelPath, child.Name, exclude)) continue;
+                        totalScanned++;
+                        if ((after.HasValue && child.Modified < after.Value) ||
+                            (before.HasValue && child.Modified >= before.Value))
+                            continue;
+                        entries.Add((dirRelPath, child.Size, child.Modified, true));
+                    }
+                }
+                else
+                {
+                    var fileRelPath = listingService.GetRootRelativePath(child.PhysicalPath);
+                    if (MatchesAnyPattern(fileRelPath, child.Name, exclude)) continue;
+                    if (!string.IsNullOrWhiteSpace(include) && !MatchesAnyPattern(fileRelPath, child.Name, include)) continue;
+                    totalScanned++;
+                    if ((after.HasValue && child.Modified < after.Value) ||
+                        (before.HasValue && child.Modified >= before.Value))
+                        continue;
+                    entries.Add((fileRelPath, child.Size, child.Modified, false));
+                }
+            }
+        }
+
+        entries.Sort((a, b) => b.Modified.CompareTo(a.Modified));
+        var results = entries.Count > maxResults ? entries.GetRange(0, maxResults) : entries;
+
+        var sb = new StringBuilder();
+        var displayRoot = string.IsNullOrEmpty(relativePath) ? "/" : $"/{relativePath}";
+
+        var rangeDesc = (after, before) switch
+        {
+            (not null, not null) => $"between {after.Value:yyyy-MM-dd} and {before.Value:yyyy-MM-dd}",
+            (not null, null) => $"after {after.Value:yyyy-MM-dd}",
+            (null, not null) => $"before {before.Value:yyyy-MM-dd}",
+            _ => ""
+        };
+        var entryType = includeDirectories ? "entries" : "files";
+
+        sb.AppendLine($"Files modified {rangeDesc} in {displayRoot}");
+        sb.AppendLine($"Found: {results.Count} of {entries.Count:N0} matching {entryType} (scanned {totalScanned:N0})");
+        sb.AppendLine();
+
+        for (var i = 0; i < results.Count; i++)
+        {
+            var (entryPath, size, modified, isDir) = results[i];
+            var sizeStr = isDir ? "     <DIR>" : DirectoryListingService.HumanizeSize(size).PadLeft(10);
+            sb.AppendLine($"  {i + 1,3}.  {modified:yyyy-MM-dd HH:mm}  {sizeStr}  {entryPath}");
+        }
+
+        if (truncated)
+        {
+            sb.AppendLine();
+            sb.AppendLine("(results may be incomplete — time budget exceeded)");
+        }
+
+        await WriteToolResult(context, id, sb.ToString());
+    }
 }

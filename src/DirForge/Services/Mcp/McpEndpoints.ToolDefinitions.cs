@@ -249,6 +249,46 @@ public static partial class McpEndpoints
 
         tools.Add(new
         {
+            name = "find_largest_directories",
+            description = "Find the largest directories by total recursive size, sorted by size descending.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["path"] = new { type = "string", description = "Relative path within the file server root. Empty string for root." },
+                    ["maxResults"] = new { type = "integer", description = "Maximum results to return (default: 20, max: 100)." },
+                    ["maxDepth"] = new { type = "integer", description = "Maximum depth to traverse (default: 10, max: 10)." },
+                    ["exclude"] = new { type = "string", description = "Comma-separated glob patterns to exclude (e.g. 'node_modules, *.tmp'). Matching directories are skipped. Supports * and ? wildcards." }
+                },
+                required = Array.Empty<string>()
+            }
+        });
+
+        tools.Add(new
+        {
+            name = "search_by_date",
+            description = "Find files modified within a date range. Supports before, after, or between. Results sorted by date descending.",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new Dictionary<string, object>
+                {
+                    ["path"] = new { type = "string", description = "Relative path within the file server root. Empty string for root." },
+                    ["after"] = new { type = "string", description = "ISO date string (e.g. '2025-01-01'). Only include files modified after this date." },
+                    ["before"] = new { type = "string", description = "ISO date string (e.g. '2025-02-01'). Only include files modified before this date." },
+                    ["maxResults"] = new { type = "integer", description = "Maximum results to return (default: 20, max: 100)." },
+                    ["maxDepth"] = new { type = "integer", description = "Maximum depth to traverse (default: 10, max: 10)." },
+                    ["include"] = new { type = "string", description = "Comma-separated glob patterns to include (e.g. '*.log, *.txt'). Only matching files are returned. Supports * and ? wildcards. Empty means all files." },
+                    ["exclude"] = new { type = "string", description = "Comma-separated glob patterns to exclude (e.g. 'node_modules, *.tmp'). Matching files and directories are skipped. Supports * and ? wildcards." },
+                    ["includeDirectories"] = new { type = "boolean", description = "Include directories in results (default: false)." }
+                },
+                required = Array.Empty<string>()
+            }
+        });
+
+        tools.Add(new
+        {
             name = "diff_snapshots",
             description = "Detect filesystem changes in a directory. On first call (without a previousToken), returns a snapshot token. On subsequent calls, pass the previous token to get a structured diff of added, removed, and modified files. The token is self-contained — no server-side state is stored.",
             inputSchema = new
@@ -360,6 +400,12 @@ public static partial class McpEndpoints
                 break;
             case "compare_directories":
                 await HandleToolCompareDirectories(context, id, arguments, options);
+                break;
+            case "find_largest_directories":
+                await HandleToolFindLargestDirectories(context, id, arguments, options);
+                break;
+            case "search_by_date":
+                await HandleToolSearchByDate(context, id, arguments, options);
                 break;
             case "find_potential_duplicates":
                 await HandleToolFindPotentialDuplicates(context, id, arguments, options);

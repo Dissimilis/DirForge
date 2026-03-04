@@ -266,6 +266,30 @@ S3 requests bypass Basic Auth (they use SigV4 instead) but enforce all the same 
 
 Set `EnableS3Endpoint=false` (default) to disable the endpoint entirely.
 
+## Symlinks and Hardlinks
+
+DirForge follows symlinks but enforces strict containment: every symlink target must resolve to a path under `RootPath`. Links that escape the root are silently blocked.
+
+### Symlinks
+
+When a request path contains a symlink, DirForge resolves it segment-by-segment. At each level, if a path component is a reparse point (symlink or junction), the final target is resolved and checked against `RootPath`. If the resolved target is outside the root, the entire path is rejected.
+
+This means you can use symlinks freely inside your shared directory tree — for example, to present files from multiple physical locations under a single virtual layout — as long as every target points somewhere within `RootPath`.
+
+During recursive operations (search, ZIP download, S3 listing), it tracks visited canonical paths to prevent infinite loops caused by circular symlinks. A directory that has already been visited (after symlink resolution) is skipped.
+
+### Hardlinks
+
+Hardlinks are regular directory entries that share an inode with another file. They have no special metadata that distinguishes them from normal files, so DirForge treats them as ordinary files. Both names are listed and downloadable independently. There is no risk of escaping `RootPath` through hardlinks since they cannot point outside the filesystem they reside on, and they cannot reference directories.
+
+### Summary
+
+| Link Type | Followed | Root Containment | Cycle Protection |
+|-----------|----------|------------------|------------------|
+| Symlink   | Yes      | Enforced per-segment | Yes (visited set) |
+| Junction (Windows) | Yes | Enforced per-segment | Yes (visited set) |
+| Hardlink  | N/A (treated as regular file) | N/A | N/A |
+
 ## Integrations API
 
 For homelab dashboards (Homarr, Homepage, etc.), DirForge exposes:
