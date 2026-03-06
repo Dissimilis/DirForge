@@ -21,7 +21,7 @@ public static class AppVersionInfo
             ?.Value is { Length: >= 10 } d ? d[..10] : null;
 
     public static string? AppVersion { get; } =
-        RawVersion is not null && BuildDate is not null ? $"({RawVersion}, {BuildDate})"
-        : RawVersion is not null ? $"({RawVersion})"
+        RawVersion is not null && BuildDate is not null ? $"{RawVersion}, {BuildDate}"
+        : RawVersion is not null ? RawVersion
         : null;
 }

@@ -291,6 +291,18 @@ S3 requests bypass Basic Auth (they use SigV4 instead) but enforce all the same 
 
 Set `EnableS3Endpoint=false` (default) to disable the endpoint entirely.
 
+## MCP (Model Context Protocol)
+
+DirForge exposes an MCP endpoint at `/mcp` that lets AI assistants browse directories, read files, search by name or content, check hashes, find duplicates, get disk usage reports, and more. Requires `EnableMcpEndpoint=true` (default) and a `BearerToken` set in your DirForge config. All hide/deny/auth policies apply.
+
+### Setup (Claude Code, Codex, etc.)
+
+Just ask your AI assistant:
+
+> "Add DirForge MCP server at http://localhost:8091/mcp with bearer token `changeme`"
+
+Then swap `changeme` for your actual `BearerToken` in a file config was added.
+
 ## Symlinks and Hardlinks
 
 DirForge follows symlinks but enforces strict containment: every symlink target must resolve to a path under `RootPath`. Links that escape the root are silently blocked.
