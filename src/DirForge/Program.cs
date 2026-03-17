@@ -8,7 +8,6 @@ using DirForge.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -148,10 +147,6 @@ for (var i = builder.Services.Count - 1; i >= 0; i--)
         builder.Services.RemoveAt(i);
     }
 }
-
-builder.Services.AddHealthChecks()
-    .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])
-    .AddCheck<RootPathReadableHealthCheck>("root_path_readable", tags: ["ready"]);
 
 var app = builder.Build();
 StaticAssetRouteHelper.Initialize(app.Logger);

@@ -2,9 +2,7 @@ using System.Text.Json;
 using DirForge.Models;
 using DirForge.Security;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace DirForge.Services;
 
@@ -24,61 +22,38 @@ public static class OperationalEndpointExtensions
 
     private static void MapHealthEndpoints(IEndpointRouteBuilder app)
     {
-        var livenessHealthOptions = new HealthCheckOptions
+        static Task WriteHealthResponse(HttpContext context, string body)
         {
-            Predicate = registration => registration.Tags.Contains("live"),
-            AllowCachingResponses = false,
-            ResultStatusCodes =
-            {
-                [HealthStatus.Healthy] = StatusCodes.Status200OK,
-                [HealthStatus.Degraded] = StatusCodes.Status200OK,
-                [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
-            },
-            ResponseWriter = async (context, report) =>
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            context.Response.Headers.CacheControl = "no-store";
+            context.Response.ContentType = "text/plain; charset=utf-8";
+            return HttpMethods.IsHead(context.Request.Method)
+                ? Task.CompletedTask
+                : context.Response.WriteAsync(body);
+        }
+
+        app.MapMethods(OperationalRouteHelper.HealthPath, [HttpMethods.Get, HttpMethods.Head], async context =>
             {
                 var dashboardMetrics = context.RequestServices.GetRequiredService<DashboardMetricsService>();
-                context.Response.Headers.CacheControl = "no-store";
-                context.Response.ContentType = "text/plain; charset=utf-8";
                 dashboardMetrics.RecordHealthProbe();
+                await WriteHealthResponse(context, "ok");
+            })
+            .WithName("HealthLive");
 
-                if (!HttpMethods.IsHead(context.Request.Method))
-                {
-                    var responseText = report.Status == HealthStatus.Unhealthy ? "not healthy" : "ok";
-                    await context.Response.WriteAsync(responseText);
-                }
-            }
-        };
-
-        var readinessHealthOptions = new HealthCheckOptions
-        {
-            Predicate = registration => registration.Tags.Contains("ready"),
-            AllowCachingResponses = false,
-            ResultStatusCodes =
-            {
-                [HealthStatus.Healthy] = StatusCodes.Status200OK,
-                [HealthStatus.Degraded] = StatusCodes.Status503ServiceUnavailable,
-                [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
-            },
-            ResponseWriter = async (context, report) =>
+        app.MapMethods(OperationalRouteHelper.HealthzPath, [HttpMethods.Get, HttpMethods.Head], async context =>
             {
                 var dashboardMetrics = context.RequestServices.GetRequiredService<DashboardMetricsService>();
-                context.Response.Headers.CacheControl = "no-store";
-                context.Response.ContentType = "text/plain; charset=utf-8";
-                var ready = report.Status == HealthStatus.Healthy;
-                dashboardMetrics.RecordReadyProbe();
-
-                if (!HttpMethods.IsHead(context.Request.Method))
-                {
-                    await context.Response.WriteAsync(ready ? "ready" : "not ready");
-                }
-            }
-        };
-
-        app.MapHealthChecks(OperationalRouteHelper.HealthPath, livenessHealthOptions)
-            .WithName("HealthLive");
-        app.MapHealthChecks(OperationalRouteHelper.HealthzPath, livenessHealthOptions)
+                dashboardMetrics.RecordHealthProbe();
+                await WriteHealthResponse(context, "ok");
+            })
             .WithName("HealthLiveAlt");
-        app.MapHealthChecks(OperationalRouteHelper.ReadyzPath, readinessHealthOptions)
+
+        app.MapMethods(OperationalRouteHelper.ReadyzPath, [HttpMethods.Get, HttpMethods.Head], async context =>
+            {
+                var dashboardMetrics = context.RequestServices.GetRequiredService<DashboardMetricsService>();
+                dashboardMetrics.RecordReadyProbe();
+                await WriteHealthResponse(context, "ready");
+            })
             .WithName("HealthReady");
     }
 
@@ -144,7 +119,7 @@ public static class OperationalEndpointExtensions
         {
             Version = AppVersionInfo.AppVersion,
             GeneratedAtUtc = DateTimeOffset.UtcNow,
-            Ready = DirectoryReadinessHelper.IsDirectoryReadable(options.RootPath),
+            Ready = true,
             UptimeSeconds = (long)snapshot.Uptime.TotalSeconds,
             TotalRequests = snapshot.TotalRequests,
             InFlightRequests = snapshot.InFlightRequests,
