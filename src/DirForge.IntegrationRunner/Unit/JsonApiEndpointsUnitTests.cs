@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text;
 using DirForge.Models;
 using DirForge.Services;
 using Microsoft.AspNetCore.Builder;
@@ -94,6 +95,34 @@ public sealed class JsonApiEndpointsUnitTests
         var (status, _) = await InvokeApiAsync(options, "/api/browse", method: "PUT");
 
         Assert.AreEqual(405, status);
+    }
+
+    [TestMethod]
+    public async Task BrowseNestedDirectory_ReturnsRootRelativeItemLinks()
+    {
+        using var tempDir = new TestTempDirectory("JsonApi-NestedLinks");
+        var root = Path.Combine(tempDir.Path, "root");
+        var dataDir = Path.Combine(root, "data");
+        Directory.CreateDirectory(dataDir);
+        File.WriteAllText(
+            Path.Combine(dataDir, "note.txt"),
+            "hello",
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+
+        var options = TestOptionsFactory.Create(root);
+        options.EnableJsonApi = true;
+
+        var (status, body) = await InvokeApiAsync(options, "/api/browse/data");
+
+        Assert.AreEqual(200, status);
+        using var doc = JsonDocument.Parse(body);
+        var item = doc.RootElement.GetProperty("items")[0];
+        Assert.AreEqual("data/note.txt", item.GetProperty("relativePath").GetString());
+
+        var links = item.GetProperty("_links");
+        Assert.AreEqual("/api/files/data/note.txt", links.GetProperty("self").GetProperty("href").GetString());
+        Assert.AreEqual("/api/files/data/note.txt/download", links.GetProperty("download").GetProperty("href").GetString());
+        Assert.AreEqual("/api/browse/data", links.GetProperty("parent").GetProperty("href").GetString());
     }
 
 }

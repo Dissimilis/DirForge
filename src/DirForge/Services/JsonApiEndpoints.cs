@@ -970,17 +970,18 @@ public static class JsonApiEndpoints
 
     private static object BuildItemObject(DirectoryEntry entry, string currentRelativePath)
     {
+        var rootRelativePath = CombineRelativePath(currentRelativePath, entry.RelativePath);
         var item = new Dictionary<string, object>
         {
             ["name"] = entry.Name,
-            ["relativePath"] = entry.RelativePath,
+            ["relativePath"] = rootRelativePath,
             ["isDirectory"] = entry.IsDirectory
         };
 
         var links = new Dictionary<string, object>();
         if (entry.IsDirectory)
         {
-            links["self"] = new { href = "/api/browse/" + entry.RelativePath };
+            links["self"] = new { href = "/api/browse/" + rootRelativePath };
             var parentHref = string.IsNullOrEmpty(currentRelativePath)
                 ? "/api/browse"
                 : "/api/browse/" + currentRelativePath;
@@ -988,9 +989,9 @@ public static class JsonApiEndpoints
         }
         else
         {
-            links["self"] = new { href = "/api/files/" + entry.RelativePath };
-            links["download"] = new { href = "/api/files/" + entry.RelativePath + "/download" };
-            links["hashes"] = new { href = "/api/files/" + entry.RelativePath + "/hashes" };
+            links["self"] = new { href = "/api/files/" + rootRelativePath };
+            links["download"] = new { href = "/api/files/" + rootRelativePath + "/download" };
+            links["hashes"] = new { href = "/api/files/" + rootRelativePath + "/hashes" };
             var parentHref = string.IsNullOrEmpty(currentRelativePath)
                 ? "/api/browse"
                 : "/api/browse/" + currentRelativePath;
@@ -1005,6 +1006,21 @@ public static class JsonApiEndpoints
 
         item["_links"] = links;
         return item;
+    }
+
+    private static string CombineRelativePath(string currentRelativePath, string entryRelativePath)
+    {
+        if (string.IsNullOrEmpty(currentRelativePath))
+        {
+            return entryRelativePath.Replace('\\', '/').Trim('/');
+        }
+
+        if (string.IsNullOrEmpty(entryRelativePath))
+        {
+            return currentRelativePath.Replace('\\', '/').Trim('/');
+        }
+
+        return currentRelativePath.Trim('/') + "/" + entryRelativePath.Trim('/');
     }
 
     private static SortMode ParseSortMode(string? value)
