@@ -24,15 +24,16 @@ if %errorlevel% neq 0 (
 )
 
 sc description DirForge "DirForge - read-only web file browser"
+sc failure DirForge reset= 86400 actions= restart/5000/restart/5000/restart/30000
 sc start DirForge
 
-set "PORT=8080"
-for /f "tokens=2 delims=:," %%a in ('findstr /i "\"Port\"" "%SCRIPT_DIR%appsettings.json" 2^>nul') do set "PORT=%%~a"
-set "PORT=%PORT: =%"
+set "PORT="
+for /f %%a in ('powershell -NoProfile -Command "foreach($f in @('appsettings.Local.json','appsettings.json')){$p=Join-Path -Path '%SCRIPT_DIR%' -ChildPath $f; if(Test-Path $p){try{$v=(Get-Content -Raw $p|ConvertFrom-Json).Port;if($v){Write-Output $v;exit}}catch{}}}" 2^>nul') do set "PORT=%%a"
+if not defined PORT set "PORT=8080"
 
 echo.
 echo DirForge service installed and started.
-echo Listening on port %PORT% (http://localhost:%PORT%)
+echo Listening on port %PORT% (http://localhost:%PORT%) unless overridden by environment variables.
 echo Configure settings in appsettings.json (located next to DirForge.exe).
 echo Use uninstall-service.bat to remove.
 pause

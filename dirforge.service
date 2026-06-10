@@ -14,6 +14,10 @@ Restart=on-failure
 RestartSec=5
 
 # Hardening
+# ProtectHome=true makes /home, /root and /run/user fully inaccessible.
+# If your RootPath lives under /home, change this to ProtectHome=read-only.
+# ProtectSystem=strict mounts everything else read-only except ReadWritePaths.
+# DirForge only reads user files, so RootPath does not need to be writable.
 ProtectSystem=strict
 ProtectHome=true
 NoNewPrivileges=true
