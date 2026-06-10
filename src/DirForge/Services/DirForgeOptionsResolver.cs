@@ -1,20 +1,26 @@
 using System.Security.Cryptography;
 using DirForge.Models;
+using Microsoft.Extensions.Hosting.Systemd;
 using Microsoft.Extensions.Hosting.WindowsServices;
 
 namespace DirForge.Services;
 
 public static class DirForgeOptionsResolver
 {
-    public static DirForgeOptions Resolve(IConfiguration configuration)
+    public static DirForgeOptions Resolve(IConfiguration configuration, bool? runningAsService = null)
     {
         var options = configuration.Get<DirForgeOptions>() ??
                       throw new InvalidOperationException("Failed to bind DirForgeOptions.");
 
+        // Service managers do not guarantee the working directory, so relative
+        // paths are anchored to the executable location instead.
+        var isService = runningAsService ??
+                        (WindowsServiceHelpers.IsWindowsService() || SystemdHelpers.IsSystemdService());
+
         var rawRootPath = options.RootPath;
         if (!string.IsNullOrWhiteSpace(rawRootPath))
         {
-            if (!Path.IsPathRooted(rawRootPath) && WindowsServiceHelpers.IsWindowsService())
+            if (!Path.IsPathRooted(rawRootPath) && isService)
                 options.RootPath = Path.GetFullPath(rawRootPath, AppContext.BaseDirectory);
             else
                 options.RootPath = Path.GetFullPath(rawRootPath);
