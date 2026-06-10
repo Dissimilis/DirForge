@@ -16,7 +16,7 @@ public static partial class McpEndpoints
     };
 
     private const string ServerName = "dirforge";
-    private const string ServerVersion = "1.0.0";
+    private static readonly string ServerVersion = AppVersionInfo.BareVersion ?? "1.0.0";
     private const string ProtocolVersion = "2025-03-26";
     private const int MaxTreeEntries = 2000;
     private const int DefaultTreeDepth = 3;

@@ -7,10 +7,33 @@ namespace DirForge.Services;
 /// </summary>
 public static class AppVersionInfo
 {
-    private static readonly string? RawVersion =
+    /// <summary>
+    /// Extracts a bare version (no "v" prefix, no build metadata) from an assembly
+    /// informational version. Returns null for the default "1.0.0" dev placeholder.
+    /// </summary>
+    public static string? ParseBareVersion(string? informationalVersion)
+    {
+        var version = informationalVersion?.Split('+')[0];
+        if (string.IsNullOrEmpty(version) || version == "1.0.0")
+        {
+            return null;
+        }
+
+        if (version.Length > 1 && (version[0] is 'v' or 'V') && char.IsDigit(version[1]))
+        {
+            version = version[1..];
+        }
+
+        return version;
+    }
+
+    public static string? BareVersion { get; } = ParseBareVersion(
         typeof(AppVersionInfo).Assembly
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion?.Split('+')[0] is { } v && v != "1.0.0"
+            ?.InformationalVersion);
+
+    private static readonly string? RawVersion =
+        BareVersion is { } v
             ? (char.IsDigit(v[0]) ? "v" + v : v)
             : null;
 
